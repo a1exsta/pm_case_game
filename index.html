@@ -119,14 +119,67 @@
     .pill.good { color: #9cf3cf; border-color: #2f946f; }
     .pill.ok { color: #f8d395; border-color: #ac7d2b; }
     .pill.bad, .pill.danger { color: #ffb1b1; border-color: #b43d3d; }
+    .coach-modal {
+      position: fixed; inset: 0; background: rgba(7,7,11,.82); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 99;
+    }
+    .coach-modal.open { display: flex; }
+    .coach-panel {
+      width: 100%; max-width: 900px; max-height: 88vh; overflow: auto;
+      background: #111218; border: 1px solid #2f3244; border-radius: 14px; padding: 14px;
+    }
+    .coach-head { display:flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .x-btn {
+      background: #232534; color: var(--text); border: 1px solid #3a3e56; border-radius: 10px; min-width: 38px; min-height: 38px; cursor: pointer;
+    }
+    .coach-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+    .field { display: grid; gap: 6px; }
+    .field label { color: var(--muted); font-size: 12px; }
+    .input, .chat-input {
+      background: #0d0f16; color: var(--text); border: 1px solid #32364d; border-radius: 10px; padding: 10px; width: 100%; font: inherit;
+    }
+    .chat-log { border: 1px solid #2e3248; border-radius: 12px; background: #0e111a; padding: 10px; min-height: 220px; max-height: 320px; overflow: auto; }
+    .msg { margin-bottom: 10px; padding: 10px; border-radius: 10px; border: 1px solid; white-space: pre-wrap; }
+    .msg.user { background: #192036; border-color: #33456e; }
+    .msg.assistant { background: #13211e; border-color: #2f5e53; }
+    .msg.system { background: #201521; border-color: #5a3a61; }
+    .chat-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
     @media (max-width: 760px) {
       .grid, .roles { grid-template-columns: 1fr; }
+      .coach-settings { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <div class="app">
     <main class="card" id="app"></main>
+  </div>
+  <div class="coach-modal" id="coachModal">
+    <div class="coach-panel">
+      <div class="coach-head">
+        <h3 style="margin:0;">AI-тренер: разбор кейса</h3>
+        <button class="x-btn" id="coachCloseBtn" aria-label="Закрыть">✕</button>
+      </div>
+      <p class="muted">Отправьте вопрос по вашему прохождению. Тренер получает контекст выбранных решений.</p>
+      <div class="coach-settings">
+        <div class="field">
+          <label for="coachEndpoint">API endpoint (OpenAI-compatible)</label>
+          <input id="coachEndpoint" class="input" placeholder="https://api.openai.com/v1/chat/completions" />
+        </div>
+        <div class="field">
+          <label for="coachModel">Model</label>
+          <input id="coachModel" class="input" placeholder="gpt-4o-mini" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="coachApiKey">API key (сохраняется только в localStorage браузера)</label>
+        <input id="coachApiKey" class="input" type="password" placeholder="sk-..." />
+      </div>
+      <div class="chat-log" id="coachLog"></div>
+      <div class="chat-row">
+        <input id="coachInput" class="chat-input" placeholder="Например: где у меня главный риск как PM?" />
+        <button class="btn" id="coachSendBtn">Отправить</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -219,10 +272,19 @@
       step: "welcome",
       idx: 0,
       score: 0,
-      answers: []
+      answers: [],
+      coachMessages: []
     };
 
     const app = document.getElementById("app");
+    const coachModal = document.getElementById("coachModal");
+    const coachLog = document.getElementById("coachLog");
+    const coachInput = document.getElementById("coachInput");
+    const coachSendBtn = document.getElementById("coachSendBtn");
+    const coachEndpoint = document.getElementById("coachEndpoint");
+    const coachModel = document.getElementById("coachModel");
+    const coachApiKey = document.getElementById("coachApiKey");
+    const coachCloseBtn = document.getElementById("coachCloseBtn");
 
     const profileByScore = (score) => {
       if (score >= 12) return { title: "Стратегический менеджер", note: "Вы балансируете интересы сторон и принимаете взвешенные data-driven решения." };
@@ -290,6 +352,122 @@
         return;
       }
       alert(text);
+    }
+
+    function buildCoachContext() {
+      const profile = profileByScore(state.score).title;
+      const answers = state.answers.map((a, i) => (
+        `${i + 1}) ${a.scenario}\nКомпетенция: ${scenarios[i].competency}\nВыбор: ${a.choice.key}. ${a.choice.text}\nТип: ${typeLabel(a.choice.type)}\nОчки: ${a.choice.pts}\nФидбек: ${a.choice.feedback}`
+      )).join("\n\n");
+      return `Ты опытный product coach. Дай практичный, честный и структурированный разбор.
+Формат ответа:
+1) Что получилось хорошо (до 3 пунктов)
+2) Критичные риски (до 3 пунктов)
+3) Точные действия на 2 недели (3-5 шагов)
+4) Один вопрос на рефлексию
+
+Профиль участника: ${profile}
+Роль: ${state.role}
+Счёт: ${state.score}/15
+
+Результаты по сценариям:
+${answers}`;
+    }
+
+    function loadCoachSettings() {
+      coachEndpoint.value = localStorage.getItem("pmCoachEndpoint") || "https://api.openai.com/v1/chat/completions";
+      coachModel.value = localStorage.getItem("pmCoachModel") || "gpt-4o-mini";
+      coachApiKey.value = localStorage.getItem("pmCoachApiKey") || "";
+    }
+
+    function saveCoachSettings() {
+      localStorage.setItem("pmCoachEndpoint", coachEndpoint.value.trim());
+      localStorage.setItem("pmCoachModel", coachModel.value.trim());
+      localStorage.setItem("pmCoachApiKey", coachApiKey.value.trim());
+    }
+
+    function renderCoachMessages() {
+      coachLog.innerHTML = state.coachMessages.map((m) => (
+        `<div class="msg ${m.role}"><b>${m.role === "user" ? "Вы" : m.role === "assistant" ? "AI-тренер" : "Система"}:</b>\n${m.content}</div>`
+      )).join("");
+      coachLog.scrollTop = coachLog.scrollHeight;
+    }
+
+    function openCoachModal() {
+      loadCoachSettings();
+      if (!state.coachMessages.length) {
+        state.coachMessages = [{
+          role: "system",
+          content: "Задайте вопрос по своему прохождению. Я учту ваши ответы в 5 сценариях и дам персональный разбор."
+        }];
+      }
+      renderCoachMessages();
+      coachModal.classList.add("open");
+      coachInput.focus();
+    }
+
+    function closeCoachModal() {
+      coachModal.classList.remove("open");
+    }
+
+    async function sendCoachMessage() {
+      const userText = coachInput.value.trim();
+      if (!userText) return;
+      saveCoachSettings();
+      const endpoint = coachEndpoint.value.trim();
+      const model = coachModel.value.trim();
+      const apiKey = coachApiKey.value.trim();
+      if (!endpoint || !model || !apiKey) {
+        state.coachMessages.push({ role: "system", content: "Заполните endpoint, model и API key, затем повторите отправку." });
+        renderCoachMessages();
+        return;
+      }
+
+      state.coachMessages.push({ role: "user", content: userText });
+      coachInput.value = "";
+      renderCoachMessages();
+      coachSendBtn.disabled = true;
+      const context = buildCoachContext();
+
+      try {
+        const messages = [
+          { role: "system", content: context },
+          ...state.coachMessages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({
+            role: m.role,
+            content: m.content
+          }))
+        ];
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.5
+          })
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`);
+        }
+
+        const data = await res.json();
+        const text = data?.choices?.[0]?.message?.content?.trim();
+        if (!text) throw new Error("Пустой ответ модели.");
+        state.coachMessages.push({ role: "assistant", content: text });
+      } catch (err) {
+        state.coachMessages.push({
+          role: "system",
+          content: `Ошибка запроса к LLM: ${err.message}. Проверьте API key, endpoint, model и CORS-политику провайдера.`
+        });
+      } finally {
+        coachSendBtn.disabled = false;
+        renderCoachMessages();
+      }
     }
 
     function render() {
@@ -442,13 +620,22 @@
         state.step = "welcome"; state.idx = 0; state.score = 0; state.answers = []; state.role = null; render();
       });
       document.getElementById("coachBtn").addEventListener("click", () => {
-        alert("Рекомендуемый формат: групповой дебрифинг на 60-90 минут с разбором причин выбора по каждому сценарию.");
+        openCoachModal();
       });
       document.getElementById("exportBtn").addEventListener("click", exportResults);
       document.getElementById("shareBtn").addEventListener("click", () => {
         shareResults().catch(() => alert("Не удалось поделиться автоматически. Попробуйте еще раз."));
       });
     }
+
+    coachSendBtn.addEventListener("click", () => { sendCoachMessage(); });
+    coachInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendCoachMessage();
+    });
+    coachCloseBtn.addEventListener("click", closeCoachModal);
+    coachModal.addEventListener("click", (e) => {
+      if (e.target === coachModal) closeCoachModal();
+    });
 
     render();
   </script>
