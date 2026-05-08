@@ -115,6 +115,9 @@
     .growth { margin-top: 14px; padding: 12px; border: 1px solid #303245; border-radius: 12px; background: #101119; }
     .growth h3 { margin-bottom: 8px; }
     .growth-item { margin-bottom: 8px; }
+    .skills-box { margin-top: 14px; padding: 12px; border: 1px solid #2f3b48; border-radius: 12px; background: #0f141c; }
+    .skills-box h3 { margin-bottom: 8px; }
+    .skills-item { margin-bottom: 8px; }
     .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid; margin-left: 8px; }
     .pill.good { color: #9cf3cf; border-color: #2f946f; }
     .pill.ok { color: #f8d395; border-color: #ac7d2b; }
@@ -491,6 +494,71 @@
       "Стратегия роста и retention": "Сначала снижайте churn, затем масштабируйте acquisition; оценивайте рост через cohort-динамику."
     };
 
+    const skillRecommendations = {
+      PM: {
+        "Приоритизация и alignment": [
+          "Усилить приоритизацию через MoSCoW, RICE и Story Mapping.",
+          "Тренировать stakeholder alignment: фасилитация спорных решений и фиксация trade-offs."
+        ],
+        "Кризисная коммуникация": [
+          "Развивать навык кризисных апдейтов: early warning + options memo.",
+          "Прокачать leadership under pressure: короткие decision loops и прозрачные риски."
+        ],
+        "Data-driven решения": [
+          "Углубить product analytics: adoption funnels, retention cohorts, feature impact.",
+          "Практиковать гипотезы/эксперименты: интервью + метрики до перераспределения roadmap."
+        ],
+        "Управление риском запуска": [
+          "Освоить release governance: quality gates, risk matrix, go/no-go критерии.",
+          "Прокачать incident communication для клиентов и внутренних стейкхолдеров."
+        ],
+        "Стратегия роста и retention": [
+          "Развивать growth-мышление через unit economics и churn decomposition.",
+          "Усилить навык построения retention roadmap с измеримыми outcome-метриками."
+        ]
+      },
+      PMO: {
+        "Приоритизация и alignment": [
+          "Усилить baseline planning: scope/schedule/resource constraints и change control.",
+          "Прокачать RACI-управление и синхронизацию кросс-функциональных зависимостей."
+        ],
+        "Кризисная коммуникация": [
+          "Развивать risk communication cadence: эскалации, RAID-лог, статус-мемо.",
+          "Тренировать scenario planning: минимум 2-3 исполнимых варианта на кризис."
+        ],
+        "Data-driven решения": [
+          "Углубить план-факт аналитику: velocity, throughput, lead time по критичным трекам.",
+          "Прокачать принятие решений через метрики, а не интуицию стейкхолдеров."
+        ],
+        "Управление риском запуска": [
+          "Освоить formal go-live readiness: checklists, quality gates, rollback strategy.",
+          "Усилить phased rollout практики и контроль операционных рисков."
+        ],
+        "Стратегия роста и retention": [
+          "Развивать capacity planning под цели роста без перегруза команды.",
+          "Прокачать stage-gate execution с KPI по retention и delivery quality."
+        ]
+      }
+    };
+
+    function buildSkillGrowthPlan(uniqueGrowthAreas) {
+      const role = state.role || "PM";
+      const roleMap = skillRecommendations[role] || skillRecommendations.PM;
+      if (!uniqueGrowthAreas.length) {
+        return [{
+          title: "Продвинутый уровень",
+          tips: [
+            "Перейти к более сложным сценариям с multi-stakeholder конфликтами.",
+            "Менторить коллег: разбор кейсов команды и калибровка решений по единым критериям."
+          ]
+        }];
+      }
+      return uniqueGrowthAreas.map((area) => ({
+        title: area,
+        tips: roleMap[area] || ["Сформируйте персональный план практики по этой компетенции."]
+      }));
+    }
+
     function exportResults() {
       const payload = {
         generatedAt: new Date().toISOString(),
@@ -838,6 +906,7 @@ ${answers}`;
         .map((a, i) => ({ pts: a.choice.pts, competency: scenarios[i].competency }))
         .filter((item) => item.pts <= 1);
       const uniqueGrowthAreas = [...new Set(growthAreas.map((g) => g.competency))];
+      const skillPlan = buildSkillGrowthPlan(uniqueGrowthAreas);
       app.innerHTML = `
         <span class="badge">Результаты</span>
         <h2>${profile.title}</h2>
@@ -864,6 +933,15 @@ ${answers}`;
           ${uniqueGrowthAreas.length ? uniqueGrowthAreas.map((area) => `
             <p class="growth-item"><b>${area}:</b> <span class="muted">${growthHints[area]}</span></p>
           `).join("") : `<p class="muted">Критичных зон роста не выявлено. Можно усложнять кейсы и добавлять командный режим.</p>`}
+        </div>
+        <div class="skills-box">
+          <h3>Рекомендации по скиллам</h3>
+          ${skillPlan.map((item) => `
+            <div class="skills-item">
+              <p><b>${item.title}</b></p>
+              <p class="muted">- ${item.tips.join("<br>- ")}</p>
+            </div>
+          `).join("")}
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
           <button class="btn" id="retryBtn">Ещё раз</button>
