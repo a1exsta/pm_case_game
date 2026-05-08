@@ -430,12 +430,174 @@
       ]
     };
 
+    const drillRounds = {
+      PM: [
+        {
+          title: "Раунд 2: Stakeholder Negotiation Drill",
+          focus: ["Приоритизация и alignment", "Кризисная коммуникация"],
+          scenarios: [
+            {
+              title: "Тренировка: сложный stakeholder-call",
+              competency: "Приоритизация и alignment",
+              context: "На еженедельном sync CPO и Sales спорят о приоритетах. Нужно выйти с единым решением за 30 минут.",
+              stakeholders: [
+                { name: "CPO", text: "Нужен фокус на value, иначе roadmap расползется." },
+                { name: "Sales", text: "Клиенты требуют быстрых обещаний по кастомным фичам." }
+              ],
+              question: "Какое действие PM даст лучший управляемый результат?",
+              choices: [
+                { key: "А", text: "Отдать приоритет самой громкой стороне ради скорости.", type: "bad", pts: 1, feedback: "Быстро, но без alignment это создаёт новый конфликт в следующем цикле." },
+                { key: "Б", text: "Зафиксировать критерии приоритизации и принять решение по ним прямо на встрече.", type: "good", pts: 3, feedback: "Прозрачные критерии снижают политизацию решений и улучшают предсказуемость." },
+                { key: "В", text: "Отложить решение до следующей недели, чтобы снизить напряжение.", type: "ok", pts: 2, feedback: "Снижает эмоциональность, но увеличивает cost of delay." },
+                { key: "Г", text: "Принять решение в одиночку и сообщить постфактум.", type: "danger", pts: 0, feedback: "Сильный риск потери доверия и саботажа исполнения." }
+              ]
+            },
+            {
+              title: "Тренировка: срочный инцидент в проде",
+              competency: "Кризисная коммуникация",
+              context: "Клиент обнаружил баг в отчётах. Нужно быстро сообщить статус руководству и команде поддержки.",
+              stakeholders: [
+                { name: "Support", text: "Клиент ждёт ETA и понятный статус." },
+                { name: "CEO", text: "Нужна оценка impact и план действий." }
+              ],
+              question: "Какой формат коммуникации самый зрелый?",
+              choices: [
+                { key: "А", text: "Дать только optimistic ETA без деталей причин.", type: "bad", pts: 1, feedback: "Кратко, но при срыве ETA ударит по доверию." },
+                { key: "Б", text: "Сообщить impact, гипотезу причины, план фикса и время следующего апдейта.", type: "good", pts: 3, feedback: "Это стандарт прозрачной кризисной коммуникации." },
+                { key: "В", text: "Подождать полного RCA и потом отправить единый отчёт.", type: "ok", pts: 2, feedback: "Качественно, но слишком медленно для активного инцидента." },
+                { key: "Г", text: "Не эскалировать, пока баг не подтверждён на 100%.", type: "danger", pts: 0, feedback: "Поздняя эскалация почти всегда увеличивает ущерб." }
+              ]
+            }
+          ]
+        },
+        {
+          title: "Раунд 3: Data & Growth Drill",
+          focus: ["Data-driven решения", "Стратегия роста и retention"],
+          scenarios: [
+            {
+              title: "Тренировка: retention просел после релиза",
+              competency: "Стратегия роста и retention",
+              context: "После релиза MAU вырос, но D30 удержание просело. Нужно выбрать следующий спринт.",
+              stakeholders: [
+                { name: "Marketing", text: "Нужно наращивать acquisition-каналы, пока есть momentum." },
+                { name: "CS", text: "Клиенты теряются после онбординга." }
+              ],
+              question: "Какой приоритет рационален сейчас?",
+              choices: [
+                { key: "А", text: "Удвоить acquisition и потом разбираться с churn.", type: "danger", pts: 0, feedback: "Рост на дырявом ведре снижает unit economics." },
+                { key: "Б", text: "Сделать retention sprint: onboarding, активация, early value.", type: "good", pts: 3, feedback: "Сначала закрываем ключевую утечку, потом масштабируемся." },
+                { key: "В", text: "Равномерно разделить ресурсы между growth и retention.", type: "ok", pts: 2, feedback: "Компромисс, но эффект может быть размытым." },
+                { key: "Г", text: "Сфокусироваться на новых фичах из wish-list клиентов.", type: "bad", pts: 1, feedback: "Без диагностики причин churn это может не решить главную проблему." }
+              ]
+            },
+            {
+              title: "Тренировка: противоречивые продуктовые метрики",
+              competency: "Data-driven решения",
+              context: "Фича имеет высокий CTR, но низкий completion и слабое влияние на выручку.",
+              stakeholders: [
+                { name: "Analytics", text: "CTR не отражает конечную ценность для бизнеса." },
+                { name: "CPO", text: "Фича выглядит успешной по верхнему уровню воронки." }
+              ],
+              question: "Какое решение лучше по data-driven подходу?",
+              choices: [
+                { key: "А", text: "Оставить всё как есть: высокий CTR уже подтверждает успех.", type: "danger", pts: 0, feedback: "Неполная метрика может маскировать слабую бизнес-ценность." },
+                { key: "Б", text: "Разложить воронку по этапам и принять решение по downstream-метрикам.", type: "good", pts: 3, feedback: "Решение на полной цепочке метрик снижает риск ложных выводов." },
+                { key: "В", text: "Сразу удалить фичу из продукта.", type: "bad", pts: 1, feedback: "Слишком радикально без проверки причин провала в воронке." },
+                { key: "Г", text: "Подождать ещё месяц без изменений, чтобы накопить больше данных.", type: "ok", pts: 2, feedback: "Иногда полезно, но при явной просадке лучше действовать быстрее." }
+              ]
+            }
+          ]
+        }
+      ],
+      PMO: [
+        {
+          title: "Раунд 2: Risk & Alignment Drill",
+          focus: ["Приоритизация и alignment", "Кризисная коммуникация"],
+          scenarios: [
+            {
+              title: "Тренировка: конфликт по baseline",
+              competency: "Приоритизация и alignment",
+              context: "Спонсор требует удержать дату, техкоманда настаивает на снижении scope. Нужна быстрая фиксация baseline.",
+              stakeholders: [
+                { name: "Спонсор", text: "Дата не двигается." },
+                { name: "Техлид", text: "Без scope cut риски реализации критичны." }
+              ],
+              question: "Как PMO корректно синхронизирует стороны?",
+              choices: [
+                { key: "А", text: "Подтвердить дату и оставить текущий scope.", type: "danger", pts: 0, feedback: "Высокий риск срыва и потери контроля над обязательствами." },
+                { key: "Б", text: "Провести quick re-baselining с фиксацией компромиссов и owners.", type: "good", pts: 3, feedback: "Зрелый подход: прозрачные ограничения и управляемые договоренности." },
+                { key: "В", text: "Отложить решение до следующего steering committee.", type: "ok", pts: 2, feedback: "Процессно, но добавляет задержку в критичный момент." },
+                { key: "Г", text: "Переложить выбор на CEO без подготовки вариантов.", type: "bad", pts: 1, feedback: "Эскалация без опций снижает ценность роли PMO." }
+              ]
+            },
+            {
+              title: "Тренировка: статус-апдейт под давлением",
+              competency: "Кризисная коммуникация",
+              context: "В проекте выявлен риск с вероятностью 60% по ключевой интеграции.",
+              stakeholders: [
+                { name: "Руководство", text: "Нужен чёткий статус и варианты действий." },
+                { name: "Команда", text: "Ожидает приоритеты и критерии решения." }
+              ],
+              question: "Какой статус-формат правильный для PMO?",
+              choices: [
+                { key: "А", text: "Сообщить, что всё под контролем, без детализации риска.", type: "danger", pts: 0, feedback: "Скрытие неопределенности разрушает доверие при отклонениях." },
+                { key: "Б", text: "Дать RAID-обновление: риск, impact, owner, next decision point.", type: "good", pts: 3, feedback: "Структурная коммуникация снижает хаос и ускоряет решение." },
+                { key: "В", text: "Отправить только технический статус без бизнес-impact.", type: "bad", pts: 1, feedback: "Руководству нужен перевод риска в бизнес-язык." },
+                { key: "Г", text: "Ожидать полного подтверждения и не поднимать риск заранее.", type: "ok", pts: 2, feedback: "Осторожно, но может быть поздно для превентивных действий." }
+              ]
+            }
+          ]
+        },
+        {
+          title: "Раунд 3: Execution & Metrics Drill",
+          focus: ["Data-driven решения", "Стратегия роста и retention"],
+          scenarios: [
+            {
+              title: "Тренировка: перегруз capacity",
+              competency: "Стратегия роста и retention",
+              context: "Квартальные цели роста увеличены, при этом velocity команды падает третий спринт подряд.",
+              stakeholders: [
+                { name: "CEO", text: "Нужно ускоряться без изменения целей." },
+                { name: "Команда", text: "Текущая загрузка приводит к выгоранию и дефектам." }
+              ],
+              question: "Как PMO перестраивает исполнение?",
+              choices: [
+                { key: "А", text: "Сохранить цели и добавить overtime как временную меру.", type: "danger", pts: 0, feedback: "Краткосрочно может сработать, но резко повышает риск качества." },
+                { key: "Б", text: "Пересобрать capacity-план и stage-gate по KPI retention/quality.", type: "good", pts: 3, feedback: "Баланс целей и устойчивого исполнения — ключевая роль PMO." },
+                { key: "В", text: "Увеличить найм и не менять текущий план.", type: "ok", pts: 2, feedback: "Полезно, но без реприоритизации может не дать быстрого эффекта." },
+                { key: "Г", text: "Сфокусироваться только на delivery-сроках, игнорируя churn.", type: "bad", pts: 1, feedback: "Сроки без outcome-метрик искажают качество принятия решений." }
+              ]
+            },
+            {
+              title: "Тренировка: метрики проекта против метрик продукта",
+              competency: "Data-driven решения",
+              context: "Проект идет по плану сроков, но продуктовые KPI проседают.",
+              stakeholders: [
+                { name: "PM", text: "Нужно корректировать функциональный фокус." },
+                { name: "Руководство", text: "Видит только green status по delivery." }
+              ],
+              question: "Как PMO должен отреагировать?",
+              choices: [
+                { key: "А", text: "Оставить execution как есть: delivery green значит всё хорошо.", type: "danger", pts: 0, feedback: "Delivery-метрики без outcome могут приводить к ложной успешности." },
+                { key: "Б", text: "Объединить project и product KPI в единый steering dashboard.", type: "good", pts: 3, feedback: "Связка execution и business impact повышает качество решений." },
+                { key: "В", text: "Снять с контроля продуктовые KPI и делегировать PM.", type: "bad", pts: 1, feedback: "PMO теряет системную картину и качество управления риском." },
+                { key: "Г", text: "Подождать следующий квартал, чтобы собрать больше тренда.", type: "ok", pts: 2, feedback: "Иногда допустимо, но при явной просадке это увеличивает cost of delay." }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
     const state = {
       role: null,
       step: "welcome",
+      roundIdx: 0,
       idx: 0,
       score: 0,
-      answers: [],
+      roundsData: [],
+      roundAnswers: [],
+      roundScores: [],
       coachMessages: []
     };
 
@@ -473,9 +635,10 @@
       }
     };
 
-    const profileByScore = (score) => {
-      if (score >= 12) return { title: "Стратегический менеджер", note: "Вы балансируете интересы сторон и принимаете взвешенные data-driven решения." };
-      if (score >= 8) return { title: "Опытный тактик", note: "База сильная, но есть точки роста в кризисах и в аргументации через данные." };
+    const profileByScore = (score, maxScore) => {
+      const ratio = maxScore ? score / maxScore : 0;
+      if (ratio >= 0.8) return { title: "Стратегический менеджер", note: "Вы балансируете интересы сторон и принимаете взвешенные data-driven решения." };
+      if (ratio >= 0.5) return { title: "Опытный тактик", note: "База сильная, но есть точки роста в кризисах и в аргументации через данные." };
       return { title: "Начинающий менеджер", note: "Хороший старт. Разбор с тренером ускорит рост практических навыков." };
     };
 
@@ -559,17 +722,72 @@
       }));
     }
 
+    function getScenarioForRole(role, index) {
+      const base = scenarios[index];
+      const roleData = roleOverrides[role]?.[index];
+      if (!roleData) return base;
+      return {
+        ...base,
+        context: roleData.context || base.context,
+        question: roleData.question || base.question,
+        stakeholders: roleData.stakeholders || base.stakeholders,
+        choices: base.choices.map((choice, i) => ({
+          ...choice,
+          text: roleData.choiceTexts?.[i] || choice.text
+        }))
+      };
+    }
+
+    function buildRoundsForRole(role) {
+      const coreRound = {
+        title: "Раунд 1: Core Case Game",
+        focus: ["Приоритизация и alignment", "Кризисная коммуникация", "Data-driven решения", "Управление риском запуска", "Стратегия роста и retention"],
+        scenarios: scenarios.map((_, i) => getScenarioForRole(role, i))
+      };
+      return [coreRound, ...(drillRounds[role] || [])];
+    }
+
+    function initTrainingFlow() {
+      state.roundsData = buildRoundsForRole(state.role);
+      state.roundAnswers = state.roundsData.map(() => []);
+      state.roundScores = state.roundsData.map(() => 0);
+      state.roundIdx = 0;
+      state.idx = 0;
+      state.score = 0;
+    }
+
+    function getCurrentRound() {
+      return state.roundsData[state.roundIdx];
+    }
+
+    function getAllAnswers() {
+      return state.roundAnswers.flat().filter(Boolean);
+    }
+
+    function getMaxScore() {
+      return state.roundsData.reduce((acc, round) => acc + (round.scenarios.length * 3), 0);
+    }
+
     function exportResults() {
+      const allAnswers = getAllAnswers();
+      const maxScore = getMaxScore();
       const payload = {
         generatedAt: new Date().toISOString(),
         role: state.role,
+        rounds: state.roundsData.map((round, i) => ({
+          title: round.title,
+          focus: round.focus,
+          score: state.roundScores[i],
+          maxScore: round.scenarios.length * 3
+        })),
         score: state.score,
-        maxScore: 15,
-        profile: profileByScore(state.score).title,
-        answers: state.answers.map((a, i) => ({
+        maxScore,
+        profile: profileByScore(state.score, maxScore).title,
+        answers: allAnswers.map((a, i) => ({
           scenarioIndex: i + 1,
+          round: a.roundTitle,
           scenario: a.scenario,
-          competency: scenarios[i].competency,
+          competency: a.competency,
           choiceKey: a.choice.key,
           choiceType: a.choice.type,
           points: a.choice.pts,
@@ -590,8 +808,9 @@
     }
 
     async function shareResults() {
-      const profile = profileByScore(state.score);
-      const text = `PM Case Game: ${state.score}/15 (${profile.title}). Роль: ${state.role}.`;
+      const maxScore = getMaxScore();
+      const profile = profileByScore(state.score, maxScore);
+      const text = `PM Case Game: ${state.score}/${maxScore} (${profile.title}). Роль: ${state.role}.`;
       if (navigator.share) {
         try {
           await navigator.share({ title: "PM Case Game", text });
@@ -607,9 +826,11 @@
     }
 
     function buildCoachContext() {
-      const profile = profileByScore(state.score).title;
-      const answers = state.answers.map((a, i) => (
-        `${i + 1}) ${a.scenario}\nКомпетенция: ${scenarios[i].competency}\nВыбор: ${a.choice.key}. ${a.choice.text}\nТип: ${typeLabel(a.choice.type)}\nОчки: ${a.choice.pts}\nФидбек: ${a.choice.feedback}`
+      const maxScore = getMaxScore();
+      const profile = profileByScore(state.score, maxScore).title;
+      const allAnswers = getAllAnswers();
+      const answers = allAnswers.map((a, i) => (
+        `${i + 1}) ${a.roundTitle} / ${a.scenario}\nКомпетенция: ${a.competency}\nВыбор: ${a.choice.key}. ${a.choice.text}\nТип: ${typeLabel(a.choice.type)}\nОчки: ${a.choice.pts}\nФидбек: ${a.choice.feedback}`
       )).join("\n\n");
       return `Ты опытный product coach. Дай практичный, честный и структурированный разбор.
 Формат ответа:
@@ -620,7 +841,7 @@
 
 Профиль участника: ${profile}
 Роль: ${state.role}
-Счёт: ${state.score}/15
+Счёт: ${state.score}/${maxScore}
 
 Результаты по сценариям:
 ${answers}`;
@@ -676,9 +897,10 @@ ${answers}`;
     function openCoachModal() {
       loadCoachSettings();
       if (!state.coachMessages.length) {
+        const totalAnswers = getAllAnswers().length;
         state.coachMessages = [{
           role: "system",
-          content: "Задайте вопрос по своему прохождению. Я учту ваши ответы в 5 сценариях и дам персональный разбор."
+          content: `Задайте вопрос по своему прохождению. Я учту ваши ответы в ${totalAnswers} сценариях и дам персональный разбор.`
         }];
       }
       renderCoachMessages();
@@ -780,33 +1002,23 @@ ${answers}`;
 
     function render() {
       if (state.step === "welcome") return renderWelcome();
+      if (state.step === "roundSummary") return renderRoundSummary();
       if (state.step === "briefing") return renderBriefing();
       if (state.step === "decision") return renderDecision();
       if (state.step === "results") return renderResults();
     }
 
-    function getScenarioForCurrentRole(index) {
-      const base = scenarios[index];
-      const roleData = roleOverrides[state.role]?.[index];
-      if (!roleData) return base;
-      return {
-        ...base,
-        context: roleData.context || base.context,
-        question: roleData.question || base.question,
-        stakeholders: roleData.stakeholders || base.stakeholders,
-        choices: base.choices.map((choice, i) => ({
-          ...choice,
-          text: roleData.choiceTexts?.[i] || choice.text
-        }))
-      };
-    }
-
     function topBar() {
-      const dots = scenarios.map((_, i) => `<span class="dot ${i === state.idx ? "active" : ""}"></span>`).join("");
+      const round = getCurrentRound();
+      const dots = round.scenarios.map((_, i) => `<span class="dot ${i === state.idx ? "active" : ""}"></span>`).join("");
+      const maxScore = getMaxScore();
       return `
         <div class="top">
-          <div class="dots">${dots}</div>
-          <div class="score">Счёт: ${state.score} / 15</div>
+          <div>
+            <div class="dots">${dots}</div>
+            <div class="muted" style="margin-top:6px;">Раунд ${state.roundIdx + 1} из ${state.roundsData.length}: ${round.title}</div>
+          </div>
+          <div class="score">Счёт: ${state.score} / ${maxScore}</div>
         </div>
       `;
     }
@@ -817,9 +1029,9 @@ ${answers}`;
         <h1>Запуск продукта: критические решения</h1>
         <p class="muted">Интерактивная тренинговая кейс-игра по полному циклу запуска B2B-продукта.</p>
         <div class="grid">
-          <div class="stat"><b>5</b><span class="muted">сценариев</span></div>
-          <div class="stat"><b>20</b><span class="muted">минут</span></div>
-          <div class="stat"><b>15</b><span class="muted">макс. очков</span></div>
+          <div class="stat"><b>3</b><span class="muted">раунда тренировки</span></div>
+          <div class="stat"><b>9</b><span class="muted">сценариев</span></div>
+          <div class="stat"><b>27</b><span class="muted">макс. очков</span></div>
         </div>
         <h3>Выберите роль</h3>
         <div class="roles">
@@ -831,16 +1043,22 @@ ${answers}`;
       document.querySelectorAll("[data-role]").forEach((btn) => {
         btn.addEventListener("click", () => { state.role = btn.dataset.role; render(); });
       });
-      document.getElementById("startBtn").addEventListener("click", () => { state.step = "briefing"; render(); });
+      document.getElementById("startBtn").addEventListener("click", () => {
+        initTrainingFlow();
+        state.step = "briefing";
+        render();
+      });
     }
 
     function renderBriefing() {
-      const sc = getScenarioForCurrentRole(state.idx);
+      const round = getCurrentRound();
+      const sc = round.scenarios[state.idx];
       app.innerHTML = `
         ${topBar()}
-        <span class="badge">Этап ${state.idx + 1} из ${scenarios.length}</span>
+        <span class="badge">Этап ${state.idx + 1} из ${round.scenarios.length}</span>
         <h2>${sc.title}</h2>
         <p>${sc.context}</p>
+        <p class="muted"><b>Тренируемый скилл:</b> ${sc.competency}</p>
         <div class="stakeholders">
           ${sc.stakeholders.map((s) => `<div class="bubble"><b>${s.name}:</b> ${s.text}</div>`).join("")}
         </div>
@@ -850,8 +1068,9 @@ ${answers}`;
     }
 
     function renderDecision() {
-      const sc = getScenarioForCurrentRole(state.idx);
-      const alreadyChosen = state.answers[state.idx];
+      const round = getCurrentRound();
+      const sc = round.scenarios[state.idx];
+      const alreadyChosen = state.roundAnswers[state.roundIdx][state.idx];
       app.innerHTML = `
         ${topBar()}
         <span class="badge">Роль: ${state.role}</span>
@@ -874,7 +1093,13 @@ ${answers}`;
           btn.addEventListener("click", () => {
             const choice = sc.choices[Number(btn.dataset.choice)];
             state.score += choice.pts;
-            state.answers[state.idx] = { scenario: sc.title, choice };
+            state.roundScores[state.roundIdx] += choice.pts;
+            state.roundAnswers[state.roundIdx][state.idx] = {
+              roundTitle: round.title,
+              scenario: sc.title,
+              competency: sc.competency,
+              choice
+            };
             showFeedback(choice, false);
             document.querySelectorAll(".choice").forEach((b) => b.disabled = true);
           });
@@ -884,26 +1109,70 @@ ${answers}`;
 
     function showFeedback(choice, locked) {
       const wrap = document.getElementById("feedbackBlock");
-      const last = state.idx === scenarios.length - 1;
+      const round = getCurrentRound();
+      const lastInRound = state.idx === round.scenarios.length - 1;
       wrap.innerHTML = `
         <div class="feedback ${choice.type}">
           <p><b>${typeLabel(choice.type)}</b> · +${choice.pts} очк.</p>
           <p class="muted">${choice.feedback}</p>
         </div>
-        <button class="btn" id="nextBtn" style="margin-top:10px;">${last ? "К результатам" : "Далее"}</button>
+        <button class="btn" id="nextBtn" style="margin-top:10px;">${lastInRound ? (state.roundIdx === state.roundsData.length - 1 ? "К итогам" : "К промежуточным итогам") : "Далее"}</button>
       `;
       document.getElementById("nextBtn").addEventListener("click", () => {
-        if (last) state.step = "results";
-        else { state.idx += 1; state.step = "briefing"; }
+        if (lastInRound) {
+          if (state.roundIdx === state.roundsData.length - 1) state.step = "results";
+          else state.step = "roundSummary";
+        } else {
+          state.idx += 1;
+          state.step = "briefing";
+        }
+        render();
+      });
+    }
+
+    function renderRoundSummary() {
+      const round = getCurrentRound();
+      const roundScore = state.roundScores[state.roundIdx];
+      const roundMax = round.scenarios.length * 3;
+      const percent = Math.round((roundScore / roundMax) * 100);
+      const weakSkills = state.roundAnswers[state.roundIdx]
+        .filter(Boolean)
+        .filter((a) => a.choice.pts <= 1)
+        .map((a) => a.competency);
+      const uniqueWeakSkills = [...new Set(weakSkills)];
+      app.innerHTML = `
+        <span class="badge">Промежуточные результаты</span>
+        <h2>${round.title}</h2>
+        <div class="ring-wrap">
+          <div class="ring" style="--p:${percent};"><div>${roundScore}</div></div>
+          <div>
+            <p><b>${roundScore} / ${roundMax} очков</b></p>
+            <p class="muted">Фокус раунда: ${round.focus.join(", ")}</p>
+          </div>
+        </div>
+        <div class="growth">
+          <h3>Фокус тренировки в следующем раунде</h3>
+          ${uniqueWeakSkills.length ? uniqueWeakSkills.map((skill) => `<p class="growth-item"><b>${skill}:</b> <span class="muted">${growthHints[skill]}</span></p>`).join("") : `<p class="muted">Сильный раунд. Следующий блок поднимет сложность и добавит стресс-тест навыков.</p>`}
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+          <button class="btn" id="nextRoundBtn">Начать следующий раунд</button>
+        </div>
+      `;
+      document.getElementById("nextRoundBtn").addEventListener("click", () => {
+        state.roundIdx += 1;
+        state.idx = 0;
+        state.step = "briefing";
         render();
       });
     }
 
     function renderResults() {
-      const profile = profileByScore(state.score);
-      const percent = Math.round((state.score / 15) * 100);
-      const growthAreas = state.answers
-        .map((a, i) => ({ pts: a.choice.pts, competency: scenarios[i].competency }))
+      const allAnswers = getAllAnswers();
+      const maxScore = getMaxScore();
+      const profile = profileByScore(state.score, maxScore);
+      const percent = Math.round((state.score / maxScore) * 100);
+      const growthAreas = allAnswers
+        .map((a) => ({ pts: a.choice.pts, competency: a.competency }))
         .filter((item) => item.pts <= 1);
       const uniqueGrowthAreas = [...new Set(growthAreas.map((g) => g.competency))];
       const skillPlan = buildSkillGrowthPlan(uniqueGrowthAreas);
@@ -913,15 +1182,24 @@ ${answers}`;
         <div class="ring-wrap">
           <div class="ring" style="--p:${percent};"><div>${state.score}</div></div>
           <div>
-            <p><b>${state.score} / 15 очков</b></p>
+            <p><b>${state.score} / ${maxScore} очков</b></p>
             <p class="muted">${profile.note}</p>
           </div>
         </div>
         <div class="log">
-          ${state.answers.map((a, i) => `
+          ${state.roundsData.map((round, i) => `
             <div class="log-item">
-              <b>${i + 1}. ${a.scenario}</b>
-              <span class="muted"> · ${scenarios[i].competency}</span>
+              <b>${round.title}</b>
+              <span class="pill good">${state.roundScores[i]} / ${round.scenarios.length * 3} очк.</span>
+              <p class="muted">Фокус: ${round.focus.join(", ")}</p>
+            </div>
+          `).join("")}
+        </div>
+        <div class="log">
+          ${allAnswers.map((a, i) => `
+            <div class="log-item">
+              <b>${i + 1}. ${a.roundTitle} / ${a.scenario}</b>
+              <span class="muted"> · ${a.competency}</span>
               <span class="pill ${a.choice.type}">${typeLabel(a.choice.type)} · ${a.choice.pts} очк.</span>
               <p class="muted" style="margin-top:8px;"><b>Выбор:</b> ${a.choice.key}. ${a.choice.text}</p>
               <p class="muted">${a.choice.feedback}</p>
@@ -951,7 +1229,16 @@ ${answers}`;
         </div>
       `;
       document.getElementById("retryBtn").addEventListener("click", () => {
-        state.step = "welcome"; state.idx = 0; state.score = 0; state.answers = []; state.role = null; render();
+        state.step = "welcome";
+        state.role = null;
+        state.roundIdx = 0;
+        state.idx = 0;
+        state.score = 0;
+        state.roundsData = [];
+        state.roundAnswers = [];
+        state.roundScores = [];
+        state.coachMessages = [];
+        render();
       });
       document.getElementById("coachBtn").addEventListener("click", () => {
         openCoachModal();
