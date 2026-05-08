@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { assessmentData, getQuestionScenario } from "../data/questions";
 import { useAssessmentStore } from "../store/useStore";
@@ -126,6 +126,7 @@ export default function Assessment() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   const chatSystemContext = useMemo(() => {
     if (!selectedTrackLabel) {
@@ -134,6 +135,19 @@ export default function Assessment() {
     const resultSummary = results.normalized.map((item) => `${displayCategory(item.category)}: ${item.percent}% (${item.zone})`).join("; ");
     return `Ты AI-наставник по управленческим кейсам. Пользователь проходит трек "${selectedTrackLabel}". Его текущие результаты: ${resultSummary}. Отвечай на русском, структурно и практично.`;
   }, [selectedTrackLabel, results.normalized]);
+
+  useEffect(() => {
+    if (!chatScrollRef.current) return;
+    chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+  }, [chatMessages, chatLoading]);
+
+  useEffect(() => {
+    if (isCompleted) return;
+    setChatMessages([]);
+    setChatInput("");
+    setChatError("");
+    setChatLoading(false);
+  }, [isCompleted]);
 
   const exportAssessmentResults = () => {
     const payload = {
@@ -310,7 +324,7 @@ export default function Assessment() {
               <h3 className="text-lg font-semibold text-cyan-200">Консультация AI-ассистента (GigaChat)</h3>
               <p className="mt-1 text-xs text-slate-400">Чат уже подключен. Просто задайте вопрос по своим результатам.</p>
 
-              <div className="mt-4 max-h-64 space-y-3 overflow-auto rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+              <div ref={chatScrollRef} className="mt-4 max-h-64 space-y-3 overflow-auto rounded-lg border border-slate-700 bg-slate-950/60 p-3">
                 {chatMessages.length === 0 ? (
                   <p className="text-sm text-slate-500">Здесь появится диалог с AI-ассистентом.</p>
                 ) : (
@@ -387,8 +401,8 @@ export default function Assessment() {
 
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-        <main className="relative mx-auto max-w-3xl px-4 py-10">
-          <section className="rounded-3xl border border-panelBorder bg-panel/90 p-8 shadow-premium">
+        <main className="relative mx-auto flex min-h-screen w-full max-w-6xl items-stretch px-4 py-4 md:px-6 md:py-6">
+          <section className="flex w-full flex-col rounded-3xl border border-panelBorder bg-panel/90 p-6 shadow-premium md:p-8">
             <div className="mb-6">
               <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-slate-400">
                 <span>
@@ -411,7 +425,7 @@ export default function Assessment() {
               </div>
             </div>
 
-            <p className="inline-flex rounded-full border border-indigo-400/40 bg-indigo-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-200">
+            <p className="inline-flex w-fit rounded-full border border-indigo-400/40 bg-indigo-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-200">
               {displayCategory(currentQuestion.category)}
             </p>
             <div className="mt-4 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 p-4">
@@ -460,7 +474,7 @@ export default function Assessment() {
               </div>
             ) : null}
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="mt-auto flex items-center justify-between pt-6">
               <button
                 type="button"
                 disabled={currentQuestionIndex === 0}
