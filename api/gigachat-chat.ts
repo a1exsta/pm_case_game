@@ -3,12 +3,19 @@ interface IncomingMessage {
   content: string;
 }
 
-const GIGACHAT_BASE_URL = "https://gigachat.devices.sberbank.ru/api/v1";
-const GIGACHAT_OAUTH_URLS = ["https://ngw.devices.sberbank.ru:9443/api/v2/oauth", "https://ngw.devices.sberbank.ru/api/v2/oauth"];
-const GIGACHAT_MODEL = "GigaChat";
-const GIGACHAT_CLIENT_ID = "a078867e-1a32-450f-8ca7-2da62337ba3b";
-const GIGACHAT_AUTH_KEY = "YTA3ODg2N2UtMWEzMi00NTBmLThjYTctMmRhNjIzMzdiYTNiOjcxNzNhZThlLTA4MDktNDJjNS1iZWUwLTc4NzBjNzdkYThlNQ==";
-const GIGACHAT_SCOPE = "GIGACHAT_API_PERS";
+const GIGACHAT_BASE_URL = process.env.GIGACHAT_BASE_URL ?? "https://gigachat.devices.sberbank.ru/api/v1";
+const GIGACHAT_OAUTH_URLS = (
+  process.env.GIGACHAT_OAUTH_URLS ??
+  "https://ngw.devices.sberbank.ru:9443/api/v2/oauth,https://ngw.devices.sberbank.ru/api/v2/oauth"
+)
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+const GIGACHAT_MODEL = process.env.GIGACHAT_MODEL ?? "GigaChat";
+const GIGACHAT_CLIENT_ID = process.env.GIGACHAT_CLIENT_ID ?? "a078867e-1a32-450f-8ca7-2da62337ba3b";
+const GIGACHAT_AUTH_KEY = process.env.GIGACHAT_AUTH_KEY ?? "YTA3ODg2N2UtMWEzMi00NTBmLThjYTctMmRhNjIzMzdiYTNiOjcxNzNhZThlLTA4MDktNDJjNS1iZWUwLTc4NzBjNzdkYThlNQ==";
+const GIGACHAT_SCOPE = process.env.GIGACHAT_SCOPE ?? "GIGACHAT_API_PERS";
+const GIGACHAT_STATIC_ACCESS_TOKEN = process.env.GIGACHAT_ACCESS_TOKEN ?? "";
 
 let cachedToken: string | null = null;
 let cachedTokenExpiresAt = 0;
@@ -53,7 +60,13 @@ async function getAccessToken() {
   }
 
   if (!payload) {
-    throw new Error(lastError || "OAuth request failed on all configured endpoints.");
+    if (GIGACHAT_STATIC_ACCESS_TOKEN.trim()) {
+      return GIGACHAT_STATIC_ACCESS_TOKEN.trim();
+    }
+    throw new Error(
+      `${lastError || "OAuth request failed on all configured endpoints."} ` +
+        "If OAuth is blocked in hosting, set GIGACHAT_ACCESS_TOKEN as an environment variable.",
+    );
   }
 
   const accessToken = payload?.access_token;
@@ -65,6 +78,26 @@ async function getAccessToken() {
   cachedToken = accessToken;
   cachedTokenExpiresAt = expiresAt || now + 25 * 60;
   return accessToken;
+}
+
+async function sendChatRequest(token: string, systemContext: string, messages: IncomingMessage[]) {
+  const response = await fetch(`${GIGACHAT_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      "X-Request-ID": createRequestId(),
+      "X-Client-ID": GIGACHAT_CLIENT_ID,
+    },
+    body: JSON.stringify({
+      model: GIGACHAT_MODEL,
+      stream: false,
+      messages: [{ role: "system", content: systemContext }, ...messages],
+    }),
+  });
+
+  return response;
 }
 
 export default async function handler(req: any, res: any) {
@@ -81,22 +114,16 @@ export default async function handler(req: any, res: any) {
       messages?: IncomingMessage[];
     } = req.body ?? {};
 
-    const token = await getAccessToken();
-    const response = await fetch(`${GIGACHAT_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-        "X-Request-ID": createRequestId(),
-        "X-Client-ID": GIGACHAT_CLIENT_ID,
-      },
-      body: JSON.stringify({
-        model: GIGACHAT_MODEL,
-        stream: false,
-        messages: [{ role: "system", content: systemContext ?? "" }, ...messages],
-      }),
-    });
+    let token = await getAccessToken();
+    let response = await sendChatRequest(token, systemContext ?? "", messages);
+
+    // Token may be expired/revoked earlier than expected — refresh once and retry.
+    if (response.status === 401 || response.status === 403) {
+      cachedToken = null;
+      cachedTokenExpiresAt = 0;
+      token = await getAccessToken();
+      response = await sendChatRequest(token, systemContext ?? "", messages);
+    }
 
     const text = await response.text();
     if (!response.ok) {
