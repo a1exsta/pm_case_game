@@ -47,6 +47,33 @@ function downloadFile(filename: string, content: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
+function hashString(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function createSeededRandom(seed: number) {
+  let state = seed || 1;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+function getShuffledOptionIndexes(questionId: string, optionsCount: number) {
+  const indexes = Array.from({ length: optionsCount }, (_, index) => index);
+  const random = createSeededRandom(hashString(questionId));
+  for (let i = indexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+  }
+  return indexes;
+}
+
 const zoneLabel = (value: number) => {
   if (value > 80) return "Зеленая зона";
   if (value >= 50) return "Желтая зона";
@@ -405,6 +432,7 @@ export default function Assessment() {
     const selectedFeedback = typeof selectedOptionIndex === "number" ? currentQuestion.options[selectedOptionIndex]?.feedback : "";
     const progress = Math.round(((currentQuestionIndex + 1) / filteredQuestions.length) * 100);
     const scenario = getQuestionScenario(currentQuestion, selectedRole!, selectedLevel!);
+    const shuffledOptionIndexes = getShuffledOptionIndexes(currentQuestion.id, currentQuestion.options.length);
     const checkpointSize = 4;
     const shouldShowCheckpoint = currentQuestionIndex > 0 && currentQuestionIndex % checkpointSize === 0 && currentQuestionIndex > lastCheckpointSeen;
 
@@ -500,13 +528,14 @@ export default function Assessment() {
             <h2 className="mt-3 text-2xl font-semibold">{currentQuestion.question}</h2>
 
             <div className="mt-6 space-y-3">
-              {currentQuestion.options.map((option, index) => {
-                const isSelected = selectedOptionIndex === index;
+              {shuffledOptionIndexes.map((originalIndex) => {
+                const option = currentQuestion.options[originalIndex];
+                const isSelected = selectedOptionIndex === originalIndex;
                 return (
                   <button
-                    key={`${currentQuestion.id}-${index}`}
+                    key={`${currentQuestion.id}-${originalIndex}`}
                     type="button"
-                    onClick={() => selectAnswer(currentQuestion.id, index)}
+                    onClick={() => selectAnswer(currentQuestion.id, originalIndex)}
                     className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                       isSelected
                         ? "border-indigo-400 bg-indigo-500/20 text-white"
