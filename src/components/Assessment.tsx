@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { assessmentData, getQuestionScenario } from "../data/questions";
 import { useAssessmentStore } from "../store/useStore";
 import RadarChart from "./RadarChart";
@@ -32,6 +33,18 @@ const displayCategory = (category: string) => categoryLabels[category] ?? catego
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+function downloadFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 const zoneLabel = (value: number) => {
@@ -121,6 +134,51 @@ export default function Assessment() {
     const resultSummary = results.normalized.map((item) => `${displayCategory(item.category)}: ${item.percent}% (${item.zone})`).join("; ");
     return `Ты AI-наставник по управленческим кейсам. Пользователь проходит трек "${selectedTrackLabel}". Его текущие результаты: ${resultSummary}. Отвечай на русском, структурно и практично.`;
   }, [selectedTrackLabel, results.normalized]);
+
+  const exportAssessmentResults = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      track: selectedTrackLabel || "Не выбран",
+      normalized: results.normalized.map((item) => ({
+        category: displayCategory(item.category),
+        percent: item.percent,
+        zone: item.zone,
+        recommendation: item.recommendation,
+      })),
+      superpowers: results.top2.map((item) => ({
+        category: displayCategory(item.category),
+        percent: item.percent,
+      })),
+      growthZones: results.bottom2.map((item) => ({
+        category: displayCategory(item.category),
+        percent: item.percent,
+      })),
+      answers: filteredQuestions.map((question) => {
+        const selectedOptionIndex = answers[question.id];
+        const selectedOption = typeof selectedOptionIndex === "number" ? question.options[selectedOptionIndex] : null;
+        return {
+          id: question.id,
+          category: displayCategory(question.category),
+          question: question.question,
+          selectedOptionIndex,
+          selectedOptionText: selectedOption?.text ?? null,
+          selectedOptionPoints: selectedOption?.points ?? null,
+          selectedOptionFeedback: selectedOption?.feedback ?? null,
+        };
+      }),
+    };
+
+    downloadFile(`assessment-results-${Date.now()}.json`, JSON.stringify(payload, null, 2), "application/json");
+  };
+
+  const exportChatDialog = () => {
+    const header = `Диалог GigaChat\nТрек: ${selectedTrackLabel || "Не выбран"}\nЭкспорт: ${new Date().toLocaleString()}\n\n`;
+    const body = chatMessages
+      .map((message, index) => `${index + 1}. ${message.role === "assistant" ? "AI" : "Вы"}:\n${message.content}`)
+      .join("\n\n---\n\n");
+
+    downloadFile(`gigachat-dialog-${Date.now()}.txt`, `${header}${body}`, "text/plain;charset=utf-8");
+  };
 
   const sendChatMessage = async () => {
     const userText = chatInput.trim();
@@ -240,6 +298,13 @@ export default function Assessment() {
             >
               Пройти заново
             </button>
+            <button
+              type="button"
+              onClick={exportAssessmentResults}
+              className="ml-3 mt-8 rounded-xl border border-cyan-500/60 bg-cyan-500/10 px-5 py-2.5 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/20"
+            >
+              Выгрузить результаты теста
+            </button>
 
             <section className="mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
               <h3 className="text-lg font-semibold text-cyan-200">Консультация AI-ассистента (GigaChat)</h3>
@@ -259,7 +324,13 @@ export default function Assessment() {
                       }`}
                     >
                       <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">{message.role === "assistant" ? "AI" : "Вы"}</p>
-                      <p className="whitespace-pre-wrap">{message.content}</p>
+                      {message.role === "assistant" ? (
+                        <div className="prose prose-invert prose-sm max-w-none">
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      )}
                     </div>
                   ))
                 )}
@@ -267,7 +338,18 @@ export default function Assessment() {
 
               {chatError ? <p className="mt-3 text-sm text-rose-300">{chatError}</p> : null}
 
-              <div className="mt-4 flex flex-col gap-3 md:flex-row">
+              <div className="mt-4 flex flex-col gap-3">
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={exportChatDialog}
+                    disabled={chatMessages.length === 0}
+                    className="rounded-lg border border-indigo-500/60 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-200 disabled:opacity-50"
+                  >
+                    Выгрузить диалог
+                  </button>
+                </div>
+                <div className="flex flex-col gap-3 md:flex-row">
                 <input
                   type="text"
                   value={chatInput}
@@ -288,6 +370,7 @@ export default function Assessment() {
                 >
                   {chatLoading ? "Отправка..." : "Спросить AI"}
                 </button>
+                </div>
               </div>
             </section>
           </section>
