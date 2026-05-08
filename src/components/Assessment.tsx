@@ -86,6 +86,35 @@ const zoneColor = (value: number) => {
   return "text-rose-300";
 };
 
+function getAnswerFeedbackStyle(points: number, allPoints: number[]) {
+  const sorted = [...allPoints].sort((a, b) => a - b);
+  const min = sorted[0] ?? 0;
+  const max = sorted[sorted.length - 1] ?? 0;
+
+  if (points >= max) {
+    return {
+      label: "Сильный ответ",
+      container: "border-cyan-500/30 bg-cyan-500/10",
+      title: "text-cyan-300",
+      text: "text-slate-200",
+    };
+  }
+  if (points <= min) {
+    return {
+      label: "Слабый ответ",
+      container: "border-rose-500/30 bg-rose-500/10",
+      title: "text-rose-300",
+      text: "text-rose-100",
+    };
+  }
+  return {
+    label: "Средний ответ",
+    container: "border-amber-500/30 bg-amber-500/10",
+    title: "text-amber-300",
+    text: "text-amber-100",
+  };
+}
+
 function calculateResults(questions: Question[], answers: Record<string, number>) {
   const perCategory: Record<string, { score: number; max: number }> = {};
 
@@ -154,6 +183,7 @@ export default function Assessment() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const questionActionsRef = useRef<HTMLDivElement | null>(null);
   const [lastCheckpointSeen, setLastCheckpointSeen] = useState(0);
 
   const chatSystemContext = useMemo(() => {
@@ -176,6 +206,13 @@ export default function Assessment() {
     setChatError("");
     setChatLoading(false);
   }, [isCompleted]);
+
+  useEffect(() => {
+    if (!hasStarted || isCompleted || !currentQuestion) return;
+    const selectedOptionIndex = answers[currentQuestion.id];
+    if (typeof selectedOptionIndex !== "number") return;
+    questionActionsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [answers, currentQuestion, hasStarted, isCompleted]);
 
   useEffect(() => {
     if (!hasStarted) {
@@ -430,6 +467,11 @@ export default function Assessment() {
   if (hasStarted && filteredQuestions.length > 0 && currentQuestion) {
     const selectedOptionIndex = answers[currentQuestion.id];
     const selectedFeedback = typeof selectedOptionIndex === "number" ? currentQuestion.options[selectedOptionIndex]?.feedback : "";
+    const selectedPoints = typeof selectedOptionIndex === "number" ? currentQuestion.options[selectedOptionIndex]?.points ?? 0 : 0;
+    const feedbackStyle = getAnswerFeedbackStyle(
+      selectedPoints,
+      currentQuestion.options.map((option) => option.points),
+    );
     const progress = Math.round(((currentQuestionIndex + 1) / filteredQuestions.length) * 100);
     const scenario = getQuestionScenario(currentQuestion, selectedRole!, selectedLevel!);
     const shuffledOptionIndexes = getShuffledOptionIndexes(currentQuestion.id, currentQuestion.options.length);
@@ -549,13 +591,15 @@ export default function Assessment() {
             </div>
 
             {selectedFeedback ? (
-              <div className="mt-5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4">
-                <p className="text-xs uppercase tracking-wide text-cyan-300">AI-ассистент</p>
-                <p className="mt-2 text-sm text-slate-200">{selectedFeedback}</p>
+              <div className={`mt-5 rounded-xl border p-4 ${feedbackStyle.container}`}>
+                <p className={`text-xs uppercase tracking-wide ${feedbackStyle.title}`}>
+                  AI-ассистент · {feedbackStyle.label}
+                </p>
+                <p className={`mt-2 text-sm ${feedbackStyle.text}`}>{selectedFeedback}</p>
               </div>
             ) : null}
 
-            <div className="mt-auto flex items-center justify-between pt-6">
+            <div ref={questionActionsRef} className="mt-auto flex items-center justify-between pt-6">
               <button
                 type="button"
                 disabled={currentQuestionIndex === 0}
