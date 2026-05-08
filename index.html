@@ -210,6 +210,27 @@
       margin: 10px 0 14px;
       background: linear-gradient(120deg, rgba(124,109,240,.18), rgba(34,211,238,.10));
     }
+    .scenario-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(93,108,158,.45);
+      background: linear-gradient(90deg, rgba(31,37,62,.65), rgba(20,31,55,.45));
+    }
+    .scenario-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(124,109,240,.24);
+    }
+    .scenario-meta b { display: block; margin-bottom: 2px; }
     .focus-chip {
       display: inline-block;
       margin-right: 8px;
@@ -1067,6 +1088,26 @@
       };
     }
 
+    function getScenarioVisualMeta(competencyKey) {
+      const key = (competencyKey || "").toLowerCase();
+      if (key.includes("приоритизация")) {
+        return { icon: "🧭", title: "Приоритизация", subtitle: "Согласование scope и компромиссов" };
+      }
+      if (key.includes("кризис")) {
+        return { icon: "🚨", title: "Кризис", subtitle: "Прозрачная коммуникация под давлением" };
+      }
+      if (key.includes("data")) {
+        return { icon: "📊", title: "Данные", subtitle: "Решение на основе метрик, а не интуиции" };
+      }
+      if (key.includes("запуска")) {
+        return { icon: "🛡️", title: "Запуск", subtitle: "Риск-контроль и качество релиза" };
+      }
+      if (key.includes("рост")) {
+        return { icon: "📈", title: "Рост", subtitle: "Удержание и масштабирование" };
+      }
+      return { icon: "🧩", title: "Кейс", subtitle: "Управленческая дилемма" };
+    }
+
     function applyLevelToScenario(baseScenario, role, level, roundTitle) {
       const cfg = levelConfigs[level] || levelConfigs.middle;
       const levelCategory = cfg.categoryByCompetency[baseScenario.competency] || baseScenario.competency;
@@ -1190,84 +1231,6 @@
         document.body.setAttribute("data-theme", state.theme);
         render();
       });
-    }
-
-    function getScenarioIllustration(sc) {
-      const key = (sc.competencyKey || "").toLowerCase();
-      const svgWrap = (inner) => `
-        <div class="scene-art">
-          <svg viewBox="0 0 920 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Иллюстрация сценария">
-            <defs>
-              <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#151a2f"/>
-                <stop offset="50%" stop-color="#1f2340"/>
-                <stop offset="100%" stop-color="#101728"/>
-              </linearGradient>
-              <linearGradient id="accentGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="#7c6df0"/>
-                <stop offset="100%" stop-color="#22d3ee"/>
-              </linearGradient>
-            </defs>
-            <rect width="920" height="190" fill="url(#bgGrad)"/>
-            ${inner}
-          </svg>
-        </div>
-      `;
-
-      if (key.includes("приоритизация")) {
-        return svgWrap(`
-          <rect x="40" y="28" width="380" height="132" rx="16" fill="#1b2442" stroke="#6b7fd1" opacity=".95"/>
-          <rect x="60" y="48" width="160" height="22" rx="8" fill="#2a3460"/>
-          <rect x="60" y="80" width="320" height="16" rx="6" fill="#253053"/>
-          <rect x="60" y="104" width="280" height="16" rx="6" fill="#253053"/>
-          <circle cx="520" cy="86" r="44" fill="#28345d" stroke="#7c6df0"/>
-          <circle cx="622" cy="86" r="44" fill="#213b4b" stroke="#22d3ee"/>
-          <circle cx="724" cy="86" r="44" fill="#3a2b4f" stroke="#e879f9"/>
-          <path d="M500 138 L744 138" stroke="url(#accentGrad)" stroke-width="4"/>
-        `);
-      }
-      if (key.includes("кризис")) {
-        return svgWrap(`
-          <rect x="48" y="34" width="220" height="120" rx="14" fill="#2a2034" stroke="#d16dbb"/>
-          <text x="76" y="74" fill="#ffd5f4" font-size="18" font-family="Manrope">Risk</text>
-          <path d="M78 95 h160" stroke="#ff8bd8" stroke-width="6" stroke-linecap="round"/>
-          <rect x="320" y="34" width="260" height="120" rx="14" fill="#1f2a4a" stroke="#7c6df0"/>
-          <rect x="348" y="62" width="200" height="14" rx="6" fill="#3f4e80"/>
-          <rect x="348" y="88" width="160" height="14" rx="6" fill="#3f4e80"/>
-          <circle cx="700" cy="94" r="52" fill="#3f2530" stroke="#ef4444"/>
-          <polygon points="700,58 738,126 662,126" fill="#ef4444"/>
-        `);
-      }
-      if (key.includes("data")) {
-        return svgWrap(`
-          <rect x="42" y="28" width="520" height="132" rx="14" fill="#1a243e" stroke="#5f79c8"/>
-          <polyline points="80,126 180,100 260,108 360,74 500,58" fill="none" stroke="#22d3ee" stroke-width="5"/>
-          <polyline points="80,136 180,124 260,118 360,128 500,96" fill="none" stroke="#7c6df0" stroke-width="5"/>
-          <circle cx="360" cy="74" r="7" fill="#22d3ee"/>
-          <circle cx="500" cy="58" r="7" fill="#22d3ee"/>
-          <rect x="620" y="44" width="250" height="32" rx="10" fill="#2a3154"/>
-          <rect x="620" y="88" width="190" height="22" rx="9" fill="#2a3154"/>
-          <rect x="620" y="120" width="230" height="22" rx="9" fill="#2a3154"/>
-        `);
-      }
-      if (key.includes("запуска")) {
-        return svgWrap(`
-          <rect x="56" y="28" width="230" height="132" rx="14" fill="#23334f" stroke="#5e8be0"/>
-          <path d="M170 132 L170 64" stroke="#9dc0ff" stroke-width="8" stroke-linecap="round"/>
-          <path d="M142 92 L170 62 L198 92 Z" fill="#9dc0ff"/>
-          <circle cx="420" cy="94" r="54" fill="#3d2532" stroke="#ef4444"/>
-          <path d="M420 62 L450 120 L390 120 Z" fill="#ef4444"/>
-          <rect x="550" y="40" width="320" height="108" rx="12" fill="#1a2941" stroke="#4fb2d8"/>
-          <rect x="576" y="66" width="272" height="14" rx="6" fill="#2f466a"/>
-          <rect x="576" y="94" width="180" height="14" rx="6" fill="#2f466a"/>
-        `);
-      }
-      return svgWrap(`
-        <circle cx="180" cy="96" r="56" fill="#2d3159" stroke="#7c6df0"/>
-        <circle cx="360" cy="96" r="56" fill="#2d3f4f" stroke="#22d3ee"/>
-        <circle cx="540" cy="96" r="56" fill="#40304d" stroke="#e879f9"/>
-        <path d="M620 120 h220" stroke="url(#accentGrad)" stroke-width="8" stroke-linecap="round"/>
-      `);
     }
 
     function exportResults() {
@@ -1591,11 +1554,18 @@ ${answers}`;
     function renderBriefing() {
       const round = getCurrentRound();
       const sc = round.scenarios[state.idx];
+      const visual = getScenarioVisualMeta(sc.competencyKey || sc.competency);
       app.innerHTML = `
         ${topBar()}
         <span class="badge">Этап ${state.idx + 1} из ${round.scenarios.length}</span>
         <h2>${sc.title}</h2>
-        ${getScenarioIllustration(sc)}
+        <div class="scenario-meta">
+          <div class="scenario-icon">${visual.icon}</div>
+          <div>
+            <b>${visual.title}</b>
+            <span class="muted">${visual.subtitle}</span>
+          </div>
+        </div>
         <p>${sc.context}</p>
         <p class="muted"><b>Категория:</b> ${sc.category || sc.competency}</p>
         <p class="muted"><b>Тренируемый скилл:</b> ${sc.competency}</p>
@@ -1611,12 +1581,19 @@ ${answers}`;
     function renderDecision() {
       const round = getCurrentRound();
       const sc = round.scenarios[state.idx];
+      const visual = getScenarioVisualMeta(sc.competencyKey || sc.competency);
       const alreadyChosen = state.roundAnswers[state.roundIdx][state.idx];
       app.innerHTML = `
         ${topBar()}
         <span class="badge">Роль: ${state.role} · Уровень: ${state.level}</span>
         <h2>${sc.title}</h2>
-        ${getScenarioIllustration(sc)}
+        <div class="scenario-meta">
+          <div class="scenario-icon">${visual.icon}</div>
+          <div>
+            <b>${visual.title}</b>
+            <span class="muted">${visual.subtitle}</span>
+          </div>
+        </div>
         <p class="muted"><b>Категория:</b> ${sc.category || sc.competency}</p>
         <p><b>Вопрос:</b> ${sc.question}</p>
         <div class="choice-list">
