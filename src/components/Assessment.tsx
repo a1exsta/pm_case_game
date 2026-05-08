@@ -606,12 +606,32 @@ export default function Assessment() {
         <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
         <main className="relative mx-auto max-w-6xl px-4 py-10">
           <section className="rounded-3xl border border-panelBorder bg-panel/90 p-8 shadow-premium">
-            <h1 className="text-3xl font-semibold">Панель результатов</h1>
-            <p className="mt-2 text-slate-300">Нормализованные результаты по категориям и зоны развития.</p>
-            {selectedTrackLabel ? <p className="mt-1 text-sm text-slate-400">Трек: {selectedTrackLabel}</p> : null}
-            <p className="mt-1 text-sm text-slate-400">
-              Уровень {playerLevel} · XP {totalXp} · серия {streakDays} дн.
-            </p>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h1 className="text-3xl font-semibold">Панель результатов</h1>
+                <p className="mt-2 text-slate-300">Нормализованные результаты по категориям и зоны развития.</p>
+                {selectedTrackLabel ? <p className="mt-1 text-sm text-slate-400">Трек: {selectedTrackLabel}</p> : null}
+                <p className="mt-1 text-sm text-slate-400">
+                  Уровень {playerLevel} · XP {totalXp} · серия {streakDays} дн.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3 md:justify-end">
+                <button
+                  type="button"
+                  onClick={resetAssessment}
+                  className="rounded-xl border border-slate-600 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                >
+                  Пройти заново
+                </button>
+                <button
+                  type="button"
+                  onClick={exportAssessmentResults}
+                  className="rounded-xl border border-cyan-500/60 bg-cyan-500/10 px-5 py-2.5 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/20"
+                >
+                  Выгрузить результаты теста
+                </button>
+              </div>
+            </div>
 
             <div className="mt-8 grid gap-8 lg:grid-cols-2">
               <RadarChart data={results.normalized.map((item) => ({ category: displayCategory(item.category), value: item.percent }))} />
@@ -649,6 +669,74 @@ export default function Assessment() {
                 </details>
               ))}
             </div>
+
+            <section className="mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
+              <h3 className="text-lg font-semibold text-cyan-200">Консультация AI-ассистента (GigaChat)</h3>
+              <p className="mt-1 text-xs text-slate-400">Чат уже подключен. Просто задайте вопрос по своим результатам.</p>
+
+              <div ref={chatScrollRef} className="mt-4 max-h-64 space-y-3 overflow-auto rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+                {chatMessages.length === 0 ? (
+                  <p className="text-sm text-slate-500">Здесь появится диалог с AI-ассистентом.</p>
+                ) : (
+                  chatMessages.map((message, index) => (
+                    <div
+                      key={`chat-message-${index}`}
+                      className={`rounded-lg border px-3 py-2 text-sm ${
+                        message.role === "assistant"
+                          ? "border-cyan-500/40 bg-cyan-500/10 text-slate-100"
+                          : "border-indigo-500/40 bg-indigo-500/10 text-slate-100"
+                      }`}
+                    >
+                      <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">{message.role === "assistant" ? "AI" : "Вы"}</p>
+                      {message.role === "assistant" ? (
+                        <div className="prose prose-invert prose-sm max-w-none">
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {chatError ? <p className="mt-3 text-sm text-rose-300">{chatError}</p> : null}
+
+              <div className="mt-4 flex flex-col gap-3">
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={exportChatDialog}
+                    disabled={chatMessages.length === 0}
+                    className="rounded-lg border border-indigo-500/60 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-200 disabled:opacity-50"
+                  >
+                    Выгрузить диалог
+                  </button>
+                </div>
+                <div className="flex flex-col gap-3 md:flex-row">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(event) => setChatInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        void sendChatMessage();
+                      }
+                    }}
+                    placeholder="Спросите у ассистента, как улучшить ваши зоны роста..."
+                    className="flex-1 rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void sendChatMessage()}
+                    disabled={chatLoading}
+                    className="rounded-lg bg-gradient-to-r from-cyan-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {chatLoading ? "Отправка..." : "Спросить AI"}
+                  </button>
+                </div>
+              </div>
+            </section>
 
             {previousCategoryScores ? (
               <div className="mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
@@ -734,88 +822,6 @@ export default function Assessment() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={resetAssessment}
-              className="mt-8 rounded-xl border border-slate-600 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-            >
-              Пройти заново
-            </button>
-            <button
-              type="button"
-              onClick={exportAssessmentResults}
-              className="ml-3 mt-8 rounded-xl border border-cyan-500/60 bg-cyan-500/10 px-5 py-2.5 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/20"
-            >
-              Выгрузить результаты теста
-            </button>
-
-            <section className="mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
-              <h3 className="text-lg font-semibold text-cyan-200">Консультация AI-ассистента (GigaChat)</h3>
-              <p className="mt-1 text-xs text-slate-400">Чат уже подключен. Просто задайте вопрос по своим результатам.</p>
-
-              <div ref={chatScrollRef} className="mt-4 max-h-64 space-y-3 overflow-auto rounded-lg border border-slate-700 bg-slate-950/60 p-3">
-                {chatMessages.length === 0 ? (
-                  <p className="text-sm text-slate-500">Здесь появится диалог с AI-ассистентом.</p>
-                ) : (
-                  chatMessages.map((message, index) => (
-                    <div
-                      key={`chat-message-${index}`}
-                      className={`rounded-lg border px-3 py-2 text-sm ${
-                        message.role === "assistant"
-                          ? "border-cyan-500/40 bg-cyan-500/10 text-slate-100"
-                          : "border-indigo-500/40 bg-indigo-500/10 text-slate-100"
-                      }`}
-                    >
-                      <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">{message.role === "assistant" ? "AI" : "Вы"}</p>
-                      {message.role === "assistant" ? (
-                        <div className="prose prose-invert prose-sm max-w-none">
-                          <ReactMarkdown>{message.content}</ReactMarkdown>
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap">{message.content}</p>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {chatError ? <p className="mt-3 text-sm text-rose-300">{chatError}</p> : null}
-
-              <div className="mt-4 flex flex-col gap-3">
-                <div className="flex items-center justify-end">
-                  <button
-                    type="button"
-                    onClick={exportChatDialog}
-                    disabled={chatMessages.length === 0}
-                    className="rounded-lg border border-indigo-500/60 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-200 disabled:opacity-50"
-                  >
-                    Выгрузить диалог
-                  </button>
-                </div>
-                <div className="flex flex-col gap-3 md:flex-row">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      void sendChatMessage();
-                    }
-                  }}
-                  placeholder="Спросите у ассистента, как улучшить ваши зоны роста..."
-                  className="flex-1 rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => void sendChatMessage()}
-                  disabled={chatLoading}
-                  className="rounded-lg bg-gradient-to-r from-cyan-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  {chatLoading ? "Отправка..." : "Спросить AI"}
-                </button>
-                </div>
-              </div>
-            </section>
           </section>
         </main>
       </div>
