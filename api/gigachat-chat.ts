@@ -13,9 +13,14 @@ const GIGACHAT_OAUTH_URLS = (
   .filter(Boolean);
 const GIGACHAT_MODEL = process.env.GIGACHAT_MODEL ?? "GigaChat";
 const GIGACHAT_CLIENT_ID = process.env.GIGACHAT_CLIENT_ID ?? "a078867e-1a32-450f-8ca7-2da62337ba3b";
-const GIGACHAT_AUTH_KEY = process.env.GIGACHAT_AUTH_KEY ?? "YTA3ODg2N2UtMWEzMi00NTBmLThjYTctMmRhNjIzMzdiYTNiOjcxNzNhZThlLTA4MDktNDJjNS1iZWUwLTc4NzBjNzdkYThlNQ==";
+const GIGACHAT_AUTH_KEY = process.env.GIGACHAT_AUTH_KEY ?? "YTA3ODg2N2UtMWEzMi00NTBmLThjYTctMmRhNjIzMzdiYTNiOmE2MGJiMTIxLWNiZDktNDk5MC04ZWQ4LTI3ZTM4MWFjODFmNw==";
 const GIGACHAT_SCOPE = process.env.GIGACHAT_SCOPE ?? "GIGACHAT_API_PERS";
 const GIGACHAT_STATIC_ACCESS_TOKEN = process.env.GIGACHAT_ACCESS_TOKEN ?? "";
+const GIGACHAT_ALLOW_INSECURE_TLS = (process.env.GIGACHAT_ALLOW_INSECURE_TLS ?? "true").toLowerCase() === "true";
+
+if (GIGACHAT_ALLOW_INSECURE_TLS) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 
 let cachedToken: string | null = null;
 let cachedTokenExpiresAt = 0;
@@ -65,7 +70,7 @@ async function getAccessToken() {
     }
     throw new Error(
       `${lastError || "OAuth request failed on all configured endpoints."} ` +
-        "If OAuth is blocked in hosting, set GIGACHAT_ACCESS_TOKEN as an environment variable.",
+        "Check client credentials and hosting network policy for ngw.devices.sberbank.ru.",
     );
   }
 
