@@ -1004,7 +1004,7 @@ export default function Assessment() {
       <main className="relative mx-auto flex min-h-screen max-w-4xl items-center px-4 py-12">
         <section className="w-full rounded-3xl border border-panelBorder bg-panel/90 p-8 shadow-premium backdrop-blur">
           <p className="mb-4 inline-flex rounded-full border border-indigo-400/40 bg-indigo-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-200">
-            Платформа оценки навыков
+            Skill Game
           </p>
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Начните оценку навыков</h1>
           <p className="mt-3 text-slate-300">Выбери роль и уровень, чтобы начать персонализированный skill-gaming сценарий.</p>
