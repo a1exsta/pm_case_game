@@ -1111,22 +1111,90 @@
     function applyLevelToScenario(baseScenario, role, level, roundTitle) {
       const cfg = levelConfigs[level] || levelConfigs.middle;
       const levelCategory = cfg.categoryByCompetency[baseScenario.competency] || baseScenario.competency;
+
+      const simplifyForJunior = (text) => {
+        let t = text;
+        const replacements = [
+          [/scope|скоуп/gi, "объем задач"],
+          [/baseline/gi, "базовый план"],
+          [/critical path/gi, "ключевой план работ"],
+          [/adoption/gi, "использование"],
+          [/retention/gi, "удержание"],
+          [/roadmap/gi, "план развития"],
+          [/stakeholder/gi, "заинтересованная сторона"],
+          [/go-live/gi, "запуск"],
+          [/RACI/gi, "распределение ответственности"],
+          [/RAID/gi, "реестр рисков и проблем"],
+          [/stage-gate/gi, "этапный контроль"],
+          [/portfolio/gi, "общий портфель задач"],
+          [/outcome/gi, "результат"]
+        ];
+        replacements.forEach(([regex, repl]) => { t = t.replace(regex, repl); });
+        t = t.replace(/\(.*?\)/g, "").replace(/\s{2,}/g, " ").trim();
+        return t;
+      };
+
+      const roleLens = {
+        PM: {
+          junior: "Смотрите на ценность для клиента и понятный следующий шаг.",
+          middle: "Балансируйте ценность, скорость и технические ограничения.",
+          senior: "Защитите решение данными и влиянием на продуктовую стратегию.",
+          lead: "Учтите системный эффект на портфель продукта и бизнес-результат."
+        },
+        PMO: {
+          junior: "Смотрите на сроки, риски и понятный план для команды.",
+          middle: "Учитывайте зависимости, реалистичность плана и управление рисками.",
+          senior: "Формируйте управляемые сценарии для steering-решения.",
+          lead: "Решение должно стабилизировать систему команд и governance контур."
+        }
+      };
+
+      const advancedChoiceSuffix = {
+        PM: {
+          senior: {
+            good: "С фокусом на продуктовый outcome и масштабируемость.",
+            ok: "С учётом краткосрочного эффекта и возможного долга.",
+            bad: "Риск: слабая связь с ценностью для пользователя.",
+            danger: "Критичный риск для доверия к продуктовым решениям."
+          },
+          lead: {
+            good: "Оцените влияние на портфель и стратегию компании.",
+            ok: "Проверьте, не размывает ли компромисс фокус портфеля.",
+            bad: "Риск: локальная оптимизация в ущерб системе.",
+            danger: "Системный риск для бизнеса и доверия руководства."
+          }
+        },
+        PMO: {
+          senior: {
+            good: "С фокусом на управляемость исполнения и рисков.",
+            ok: "Оцените влияние на critical path и SLA команды.",
+            bad: "Риск: слабая управляемость плана и зависимостей.",
+            danger: "Критичный риск срыва программы и эскалаций."
+          },
+          lead: {
+            good: "Проверьте влияние на program governance и exec-решения.",
+            ok: "Убедитесь, что компромисс не ломает систему контроля.",
+            bad: "Риск: локальная мера без системного эффекта.",
+            danger: "Системный риск для программы и бизнес-обязательств."
+          }
+        }
+      };
+
       const tunedChoices = baseScenario.choices.map((choice) => {
         if (level === "junior") {
-          let simpleText = "Сделать понятный шаг и проверить результат.";
-          if (choice.type === "good") simpleText = "Обсудить с командой, проверить факты и выбрать самый безопасный рабочий план.";
-          if (choice.type === "ok") simpleText = "Выбрать компромиссный вариант и потом отдельно проверить риски.";
-          if (choice.type === "bad") simpleText = "Быстро принять решение без полной проверки деталей.";
-          if (choice.type === "danger") simpleText = "Игнорировать риск или скрыть проблему, чтобы не волновать других.";
+          const roleNote = role === "PM"
+            ? "С позиции PM: что даст понятную пользу клиенту."
+            : "С позиции PMO: что даст понятный и безопасный план.";
           return {
             ...choice,
-            text: simpleText
+            text: `${simplifyForJunior(choice.text)} ${roleNote}`
           };
         }
         if (level === "senior" || level === "lead") {
+          const suffix = advancedChoiceSuffix[role]?.[level]?.[choice.type] || "Оцените долгосрочный эффект и системные риски.";
           return {
             ...choice,
-            text: `${choice.text} (Оцените долгосрочный эффект и системные риски.)`
+            text: `${choice.text} (${suffix})`
           };
         }
         return choice;
@@ -1136,8 +1204,12 @@
         ...baseScenario,
         competencyKey: baseScenario.competency,
         category: levelCategory,
-        context: juniorPreset ? juniorPreset.context : `${baseScenario.context} ${cfg.contextAddon}`,
-        question: juniorPreset ? juniorPreset.question : `${cfg.questionPrefix}${baseScenario.question}`,
+        context: juniorPreset
+          ? `${juniorPreset.context} ${roleLens[role]?.junior || ""}`
+          : `${baseScenario.context} ${cfg.contextAddon} ${roleLens[role]?.[level] || ""}`,
+        question: juniorPreset
+          ? `${juniorPreset.question} (${role === "PM" ? "роль PM" : "роль PMO"})`
+          : `${cfg.questionPrefix}${baseScenario.question}`,
         competency: `${baseScenario.competency} (${cfg.complexityTag})`,
         choices: tunedChoices,
         roundTitle
