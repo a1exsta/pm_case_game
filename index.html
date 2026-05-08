@@ -25,11 +25,16 @@
       --warn: #f59e0b;
       --bad: #ef4444;
       --danger: #dc2626;
+      --cyan: #22d3ee;
+      --pink: #e879f9;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: var(--bg);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(124,109,240,.25), transparent 50%),
+        radial-gradient(900px 500px at 100% 0%, rgba(34,211,238,.18), transparent 45%),
+        var(--bg);
       color: var(--text);
       font-family: Manrope, system-ui, sans-serif;
     }
@@ -37,11 +42,16 @@
     .card {
       width: 100%;
       max-width: 920px;
-      background: linear-gradient(180deg, var(--surface), var(--surface-2));
-      border: 1px solid #252530;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)),
+        linear-gradient(180deg, var(--surface), var(--surface-2));
+      border: 1px solid rgba(124,109,240,.24);
       border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+      box-shadow:
+        0 16px 48px rgba(0,0,0,.45),
+        inset 0 1px 0 rgba(255,255,255,.04);
+      backdrop-filter: blur(8px);
     }
     h1, h2, h3 { font-family: Unbounded, sans-serif; line-height: 1.2; margin: 0 0 12px; }
     p { color: var(--text); margin: 0 0 10px; }
@@ -65,9 +75,9 @@
     .dot.active { background: var(--accent); border-color: var(--accent); }
     .badge {
       display: inline-block;
-      background: rgba(124,109,240,.18);
-      color: #d8d4ff;
-      border: 1px solid rgba(124,109,240,.5);
+      background: linear-gradient(90deg, rgba(124,109,240,.28), rgba(232,121,249,.20));
+      color: #ede9ff;
+      border: 1px solid rgba(182,167,255,.52);
       font-size: 12px;
       border-radius: 999px;
       padding: 5px 10px;
@@ -78,17 +88,19 @@
     .stat b { font-family: Unbounded, sans-serif; display: block; margin-bottom: 4px; font-size: 16px; }
     .roles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 14px 0 18px; }
     .role-btn, .choice, .btn {
-      background: #1b1c25; color: var(--text); border: 1px solid #313342; border-radius: 12px;
+      background: linear-gradient(180deg, #1d1f2a, #191b25); color: var(--text); border: 1px solid #313342; border-radius: 12px;
       padding: 12px; cursor: pointer; text-align: left; font: inherit;
+      transition: .18s ease;
     }
-    .role-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(124,109,240,.25) inset; }
+    .role-btn:hover, .choice:hover { transform: translateY(-1px); border-color: #505478; }
+    .role-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(124,109,240,.25) inset, 0 8px 22px rgba(124,109,240,.22); }
     .btn {
       display: inline-flex; align-items: center; justify-content: center; text-align: center;
-      min-height: 42px; min-width: 160px; background: var(--accent); border-color: transparent; font-weight: 700;
+      min-height: 42px; min-width: 160px; background: linear-gradient(90deg, #7c6df0, #9a8cff); border-color: transparent; font-weight: 700;
+      box-shadow: 0 10px 24px rgba(124,109,240,.28);
     }
     .btn:disabled { opacity: .55; cursor: not-allowed; }
     .choice-list { display: grid; gap: 10px; margin: 12px 0; }
-    .choice:hover { border-color: #4a4d63; }
     .choice.locked { cursor: default; opacity: .8; }
     .stakeholders { display: grid; gap: 8px; margin: 12px 0; }
     .bubble {
@@ -100,6 +112,32 @@
     .feedback.ok { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.35); }
     .feedback.bad { background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.35); }
     .feedback.danger { background: rgba(220,38,38,.13); border-color: rgba(220,38,38,.38); }
+    .hero {
+      border: 1px solid rgba(120,125,168,.35);
+      border-radius: 14px;
+      padding: 14px;
+      margin: 10px 0 14px;
+      background: linear-gradient(120deg, rgba(124,109,240,.18), rgba(34,211,238,.10));
+    }
+    .focus-chip {
+      display: inline-block;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(94,111,170,.55);
+      background: rgba(24,31,52,.75);
+      color: #cad6ff;
+      font-size: 12px;
+    }
+    .scene-art {
+      margin: 10px 0 12px;
+      border: 1px solid rgba(95,106,147,.45);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #0e1118;
+    }
+    .scene-art svg { width: 100%; height: 190px; display: block; }
     .ring-wrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
     .ring {
       width: 120px; height: 120px; border-radius: 50%;
@@ -974,6 +1012,84 @@
       return state.roundsData.reduce((acc, round) => acc + (round.scenarios.length * 3), 0);
     }
 
+    function getScenarioIllustration(sc) {
+      const key = (sc.competencyKey || "").toLowerCase();
+      const svgWrap = (inner) => `
+        <div class="scene-art">
+          <svg viewBox="0 0 920 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Иллюстрация сценария">
+            <defs>
+              <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#151a2f"/>
+                <stop offset="50%" stop-color="#1f2340"/>
+                <stop offset="100%" stop-color="#101728"/>
+              </linearGradient>
+              <linearGradient id="accentGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#7c6df0"/>
+                <stop offset="100%" stop-color="#22d3ee"/>
+              </linearGradient>
+            </defs>
+            <rect width="920" height="190" fill="url(#bgGrad)"/>
+            ${inner}
+          </svg>
+        </div>
+      `;
+
+      if (key.includes("приоритизация")) {
+        return svgWrap(`
+          <rect x="40" y="28" width="380" height="132" rx="16" fill="#1b2442" stroke="#6b7fd1" opacity=".95"/>
+          <rect x="60" y="48" width="160" height="22" rx="8" fill="#2a3460"/>
+          <rect x="60" y="80" width="320" height="16" rx="6" fill="#253053"/>
+          <rect x="60" y="104" width="280" height="16" rx="6" fill="#253053"/>
+          <circle cx="520" cy="86" r="44" fill="#28345d" stroke="#7c6df0"/>
+          <circle cx="622" cy="86" r="44" fill="#213b4b" stroke="#22d3ee"/>
+          <circle cx="724" cy="86" r="44" fill="#3a2b4f" stroke="#e879f9"/>
+          <path d="M500 138 L744 138" stroke="url(#accentGrad)" stroke-width="4"/>
+        `);
+      }
+      if (key.includes("кризис")) {
+        return svgWrap(`
+          <rect x="48" y="34" width="220" height="120" rx="14" fill="#2a2034" stroke="#d16dbb"/>
+          <text x="76" y="74" fill="#ffd5f4" font-size="18" font-family="Manrope">Risk</text>
+          <path d="M78 95 h160" stroke="#ff8bd8" stroke-width="6" stroke-linecap="round"/>
+          <rect x="320" y="34" width="260" height="120" rx="14" fill="#1f2a4a" stroke="#7c6df0"/>
+          <rect x="348" y="62" width="200" height="14" rx="6" fill="#3f4e80"/>
+          <rect x="348" y="88" width="160" height="14" rx="6" fill="#3f4e80"/>
+          <circle cx="700" cy="94" r="52" fill="#3f2530" stroke="#ef4444"/>
+          <polygon points="700,58 738,126 662,126" fill="#ef4444"/>
+        `);
+      }
+      if (key.includes("data")) {
+        return svgWrap(`
+          <rect x="42" y="28" width="520" height="132" rx="14" fill="#1a243e" stroke="#5f79c8"/>
+          <polyline points="80,126 180,100 260,108 360,74 500,58" fill="none" stroke="#22d3ee" stroke-width="5"/>
+          <polyline points="80,136 180,124 260,118 360,128 500,96" fill="none" stroke="#7c6df0" stroke-width="5"/>
+          <circle cx="360" cy="74" r="7" fill="#22d3ee"/>
+          <circle cx="500" cy="58" r="7" fill="#22d3ee"/>
+          <rect x="620" y="44" width="250" height="32" rx="10" fill="#2a3154"/>
+          <rect x="620" y="88" width="190" height="22" rx="9" fill="#2a3154"/>
+          <rect x="620" y="120" width="230" height="22" rx="9" fill="#2a3154"/>
+        `);
+      }
+      if (key.includes("запуска")) {
+        return svgWrap(`
+          <rect x="56" y="28" width="230" height="132" rx="14" fill="#23334f" stroke="#5e8be0"/>
+          <path d="M170 132 L170 64" stroke="#9dc0ff" stroke-width="8" stroke-linecap="round"/>
+          <path d="M142 92 L170 62 L198 92 Z" fill="#9dc0ff"/>
+          <circle cx="420" cy="94" r="54" fill="#3d2532" stroke="#ef4444"/>
+          <path d="M420 62 L450 120 L390 120 Z" fill="#ef4444"/>
+          <rect x="550" y="40" width="320" height="108" rx="12" fill="#1a2941" stroke="#4fb2d8"/>
+          <rect x="576" y="66" width="272" height="14" rx="6" fill="#2f466a"/>
+          <rect x="576" y="94" width="180" height="14" rx="6" fill="#2f466a"/>
+        `);
+      }
+      return svgWrap(`
+        <circle cx="180" cy="96" r="56" fill="#2d3159" stroke="#7c6df0"/>
+        <circle cx="360" cy="96" r="56" fill="#2d3f4f" stroke="#22d3ee"/>
+        <circle cx="540" cy="96" r="56" fill="#40304d" stroke="#e879f9"/>
+        <path d="M620 120 h220" stroke="url(#accentGrad)" stroke-width="8" stroke-linecap="round"/>
+      `);
+    }
+
     function exportResults() {
       const allAnswers = getAllAnswers();
       const maxScore = getMaxScore();
@@ -1240,7 +1356,13 @@ ${answers}`;
       app.innerHTML = `
         <span class="badge">PM CASE GAME</span>
         <h1>Запуск продукта: критические решения</h1>
-        <p class="muted">Интерактивная тренинговая кейс-игра по полному циклу запуска B2B-продукта.</p>
+        <div class="hero">
+          <p style="margin-bottom:8px;"><b>Иммерсивная симуляция для PM/PMO</b></p>
+          <p class="muted">Современный тренажер: ветвящиеся дилеммы, мультираундовая прокачка скиллов и персональный AI-дебриф после прохождения.</p>
+          <span class="focus-chip">Role-based сценарии</span>
+          <span class="focus-chip">Skill drills</span>
+          <span class="focus-chip">AI Coach</span>
+        </div>
         <div class="grid">
           <div class="stat"><b>${previewRounds.length || 3}</b><span class="muted">раунда тренировки</span></div>
           <div class="stat"><b>${previewScenarioCount}</b><span class="muted">сценариев</span></div>
@@ -1258,7 +1380,7 @@ ${answers}`;
           <button class="role-btn ${state.level === "senior" ? "active" : ""}" data-level="senior"><b>Senior</b><br><span class="muted">${levelConfigs.senior.description}</span></button>
           <button class="role-btn ${state.level === "lead" ? "active" : ""}" data-level="lead"><b>Lead</b><br><span class="muted">${levelConfigs.lead.description}</span></button>
         </div>
-        ${selectedLevelCfg ? `<p class="muted"><b>Выбранный трек:</b> ${selectedLevelCfg.label} · ${selectedLevelCfg.complexityTag}</p>` : ""}
+        ${selectedLevelCfg ? `<p class="muted"><b>Выбранный трек:</b> ${selectedLevelCfg.label} · ${selectedLevelCfg.complexityTag}</p>` : `<p class="muted">Выберите роль и уровень, чтобы сгенерировать персональную дорожку тренировки.</p>`}
         <button class="btn" id="startBtn" ${(state.role && state.level) ? "" : "disabled"}>Начать</button>
       `;
       document.querySelectorAll("[data-role]").forEach((btn) => {
@@ -1281,7 +1403,9 @@ ${answers}`;
         ${topBar()}
         <span class="badge">Этап ${state.idx + 1} из ${round.scenarios.length}</span>
         <h2>${sc.title}</h2>
+        ${getScenarioIllustration(sc)}
         <p>${sc.context}</p>
+        <p class="muted"><b>Категория:</b> ${sc.category || sc.competency}</p>
         <p class="muted"><b>Тренируемый скилл:</b> ${sc.competency}</p>
         <div class="stakeholders">
           ${sc.stakeholders.map((s) => `<div class="bubble"><b>${s.name}:</b> ${s.text}</div>`).join("")}
@@ -1299,6 +1423,7 @@ ${answers}`;
         ${topBar()}
         <span class="badge">Роль: ${state.role} · Уровень: ${state.level}</span>
         <h2>${sc.title}</h2>
+        ${getScenarioIllustration(sc)}
         <p class="muted"><b>Категория:</b> ${sc.category || sc.competency}</p>
         <p><b>Вопрос:</b> ${sc.question}</p>
         <div class="choice-list">
