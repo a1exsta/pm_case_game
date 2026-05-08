@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { assessmentData, getQuestionScenario } from "../data/questions";
 import { useAssessmentStore } from "../store/useStore";
 import RadarChart from "./RadarChart";
@@ -27,6 +28,18 @@ const categoryLabels: Record<string, string> = {
 };
 
 const displayCategory = (category: string) => categoryLabels[category] ?? category;
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+const DEFAULT_GIGACHAT_BASE_URL = "https://gigachat.devices.sberbank.ru/api/v1";
+const DEFAULT_GIGACHAT_OAUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
+const DEFAULT_GIGACHAT_MODEL = "GigaChat";
+const DEFAULT_GIGACHAT_CLIENT_ID = "a078867e-1a32-450f-8ca7-2da62337ba3b";
+const DEFAULT_GIGACHAT_AUTH_KEY = "YTA3ODg2N2UtMWEzMi00NTBmLThjYTctMmRhNjIzMzdiYTNiOjcxNzNhZThlLTA4MDktNDJjNS1iZWUwLTc4NzBjNzdkYThlNQ==";
+const DEFAULT_GIGACHAT_SCOPE = "GIGACHAT_API_PERS";
 
 const zoneLabel = (value: number) => {
   if (value > 80) return "Зеленая зона";
@@ -103,6 +116,154 @@ export default function Assessment() {
   const selectedTrackLabel = selectedRole && selectedLevel ? `${roleLabels[selectedRole]} · ${levelLabels[selectedLevel]}` : "";
 
   const results = calculateResults(filteredQuestions, answers);
+  const [chatToken, setChatToken] = useState("");
+  const [chatBaseUrl, setChatBaseUrl] = useState(DEFAULT_GIGACHAT_BASE_URL);
+  const [chatModel, setChatModel] = useState(DEFAULT_GIGACHAT_MODEL);
+  const [oauthUrl, setOauthUrl] = useState(DEFAULT_GIGACHAT_OAUTH_URL);
+  const [oauthClientId, setOauthClientId] = useState(DEFAULT_GIGACHAT_CLIENT_ID);
+  const [oauthAuthKey, setOauthAuthKey] = useState(DEFAULT_GIGACHAT_AUTH_KEY);
+  const [oauthScope, setOauthScope] = useState(DEFAULT_GIGACHAT_SCOPE);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem("gigachat_access_token");
+    const storedBaseUrl = localStorage.getItem("gigachat_base_url");
+    const storedModel = localStorage.getItem("gigachat_model");
+    const storedOauthUrl = localStorage.getItem("gigachat_oauth_url");
+    const storedOauthClientId = localStorage.getItem("gigachat_client_id");
+    const storedOauthAuthKey = localStorage.getItem("gigachat_auth_key");
+    const storedOauthScope = localStorage.getItem("gigachat_scope");
+    if (storedToken) setChatToken(storedToken);
+    if (storedBaseUrl) setChatBaseUrl(storedBaseUrl);
+    if (storedModel) setChatModel(storedModel);
+    if (storedOauthUrl) setOauthUrl(storedOauthUrl);
+    if (storedOauthClientId) setOauthClientId(storedOauthClientId);
+    if (storedOauthAuthKey) setOauthAuthKey(storedOauthAuthKey);
+    if (storedOauthScope) setOauthScope(storedOauthScope);
+  }, []);
+
+  const chatSystemContext = useMemo(() => {
+    if (!selectedTrackLabel) {
+      return "Ты AI-наставник по управленческим кейсам. Давай короткие и практичные советы на русском языке.";
+    }
+    const resultSummary = results.normalized.map((item) => `${displayCategory(item.category)}: ${item.percent}% (${item.zone})`).join("; ");
+    return `Ты AI-наставник по управленческим кейсам. Пользователь проходит трек "${selectedTrackLabel}". Его текущие результаты: ${resultSummary}. Отвечай на русском, структурно и практично.`;
+  }, [selectedTrackLabel, results.normalized]);
+
+  const sendChatMessage = async () => {
+    const userText = chatInput.trim();
+    if (!userText || chatLoading) return;
+    if (!chatToken.trim()) {
+      setChatError("Добавьте access token GigaChat, чтобы отправить запрос.");
+      return;
+    }
+
+    setChatError("");
+    const nextMessages: ChatMessage[] = [...chatMessages, { role: "user", content: userText }];
+    setChatMessages(nextMessages);
+    setChatInput("");
+    setChatLoading(true);
+
+    localStorage.setItem("gigachat_access_token", chatToken.trim());
+    localStorage.setItem("gigachat_base_url", chatBaseUrl.trim());
+    localStorage.setItem("gigachat_model", chatModel.trim());
+    localStorage.setItem("gigachat_oauth_url", oauthUrl.trim());
+    localStorage.setItem("gigachat_client_id", oauthClientId.trim());
+    localStorage.setItem("gigachat_auth_key", oauthAuthKey.trim());
+    localStorage.setItem("gigachat_scope", oauthScope.trim());
+
+    try {
+      const requestId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}`;
+      const response = await fetch(`${chatBaseUrl.replace(/\/$/, "")}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${chatToken.trim()}`,
+          "X-Request-ID": requestId,
+          ...(oauthClientId.trim() ? { "X-Client-ID": oauthClientId.trim() } : {}),
+        },
+        body: JSON.stringify({
+          model: chatModel.trim() || "GigaChat",
+          stream: false,
+          messages: [
+            { role: "system", content: chatSystemContext },
+            ...nextMessages.map((message) => ({ role: message.role, content: message.content })),
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`GigaChat API ${response.status}: ${errorText.slice(0, 220)}`);
+      }
+
+      const payload = await response.json();
+      const assistantText = payload?.choices?.[0]?.message?.content?.trim();
+      if (!assistantText) {
+        throw new Error("Пустой ответ от GigaChat.");
+      }
+
+      setChatMessages((prev) => [...prev, { role: "assistant", content: assistantText }]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Неизвестная ошибка запроса.";
+      setChatError(message);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const requestGigaChatAccessToken = async () => {
+    if (oauthLoading) return;
+    if (!oauthAuthKey.trim()) {
+      setChatError("Добавьте authorization key для OAuth.");
+      return;
+    }
+    setChatError("");
+    setOauthLoading(true);
+
+    try {
+      const requestId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}`;
+      const body = new URLSearchParams({ scope: oauthScope.trim() || DEFAULT_GIGACHAT_SCOPE });
+      const response = await fetch(oauthUrl.trim() || DEFAULT_GIGACHAT_OAUTH_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+          Authorization: `Basic ${oauthAuthKey.trim()}`,
+          RqUID: requestId,
+        },
+        body,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OAuth ${response.status}: ${errorText.slice(0, 240)}`);
+      }
+
+      const payload = await response.json();
+      const accessToken = payload?.access_token?.trim?.();
+      if (!accessToken) {
+        throw new Error("OAuth не вернул access_token.");
+      }
+
+      setChatToken(accessToken);
+      localStorage.setItem("gigachat_access_token", accessToken);
+      localStorage.setItem("gigachat_oauth_url", oauthUrl.trim());
+      localStorage.setItem("gigachat_client_id", oauthClientId.trim());
+      localStorage.setItem("gigachat_auth_key", oauthAuthKey.trim());
+      localStorage.setItem("gigachat_scope", oauthScope.trim());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Неизвестная ошибка OAuth.";
+      setChatError(message);
+    } finally {
+      setOauthLoading(false);
+    }
+  };
 
   if (hasStarted && filteredQuestions.length === 0) {
     return (
@@ -178,6 +339,121 @@ export default function Assessment() {
             >
               Пройти заново
             </button>
+
+            <section className="mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
+              <h3 className="text-lg font-semibold text-cyan-200">Консультация AI-ассистента (GigaChat)</h3>
+              <p className="mt-1 text-xs text-slate-400">
+                Можно получить access token автоматически через OAuth и сразу писать в чат.
+              </p>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <input
+                  type="password"
+                  value={chatToken}
+                  onChange={(event) => setChatToken(event.target.value)}
+                  placeholder="Access token"
+                  className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                />
+                <input
+                  type="text"
+                  value={chatBaseUrl}
+                  onChange={(event) => setChatBaseUrl(event.target.value)}
+                  placeholder="Base URL"
+                  className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                />
+                <input
+                  type="text"
+                  value={chatModel}
+                  onChange={(event) => setChatModel(event.target.value)}
+                  placeholder="Model"
+                  className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <input
+                  type="text"
+                  value={oauthUrl}
+                  onChange={(event) => setOauthUrl(event.target.value)}
+                  placeholder="OAuth URL"
+                  className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                />
+                <input
+                  type="text"
+                  value={oauthClientId}
+                  onChange={(event) => setOauthClientId(event.target.value)}
+                  placeholder="Client ID"
+                  className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                />
+                <input
+                  type="password"
+                  value={oauthAuthKey}
+                  onChange={(event) => setOauthAuthKey(event.target.value)}
+                  placeholder="Authorization key (Basic)"
+                  className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400 md:col-span-2"
+                />
+                <input
+                  type="text"
+                  value={oauthScope}
+                  onChange={(event) => setOauthScope(event.target.value)}
+                  placeholder="Scope"
+                  className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => void requestGigaChatAccessToken()}
+                  disabled={oauthLoading}
+                  className="rounded-lg border border-cyan-500/60 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 disabled:opacity-50"
+                >
+                  {oauthLoading ? "Получаем токен..." : "Получить access token"}
+                </button>
+              </div>
+
+              <div className="mt-4 max-h-64 space-y-3 overflow-auto rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+                {chatMessages.length === 0 ? (
+                  <p className="text-sm text-slate-500">Здесь появится диалог с AI-ассистентом.</p>
+                ) : (
+                  chatMessages.map((message, index) => (
+                    <div
+                      key={`chat-message-${index}`}
+                      className={`rounded-lg border px-3 py-2 text-sm ${
+                        message.role === "assistant"
+                          ? "border-cyan-500/40 bg-cyan-500/10 text-slate-100"
+                          : "border-indigo-500/40 bg-indigo-500/10 text-slate-100"
+                      }`}
+                    >
+                      <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">{message.role === "assistant" ? "AI" : "Вы"}</p>
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {chatError ? <p className="mt-3 text-sm text-rose-300">{chatError}</p> : null}
+
+              <div className="mt-4 flex flex-col gap-3 md:flex-row">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      void sendChatMessage();
+                    }
+                  }}
+                  placeholder="Спросите у ассистента, как улучшить ваши зоны роста..."
+                  className="flex-1 rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => void sendChatMessage()}
+                  disabled={chatLoading}
+                  className="rounded-lg bg-gradient-to-r from-cyan-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {chatLoading ? "Отправка..." : "Спросить AI"}
+                </button>
+              </div>
+            </section>
           </section>
         </main>
       </div>
