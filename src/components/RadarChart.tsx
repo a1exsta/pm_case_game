@@ -44,11 +44,11 @@ function AxisTick({ x = 0, y = 0, cx = 0, cy = 0, payload }: AxisTickProps) {
 
   if (Math.abs(dx) > Math.abs(dy)) {
     if (dx < 0) {
-      textAnchor = "start";
-      xOffset = 10;
-    } else {
       textAnchor = "end";
-      xOffset = -10;
+      xOffset = -12;
+    } else {
+      textAnchor = "start";
+      xOffset = 12;
     }
   } else {
     textAnchor = "middle";
@@ -66,7 +66,7 @@ export default function RadarChart({ data }: Props) {
   return (
     <div className="h-80 w-full rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
       <ResponsiveContainer width="100%" height="100%">
-        <RechartsRadarChart data={data} margin={{ top: 18, right: 44, bottom: 18, left: 44 }}>
+        <RechartsRadarChart data={data} margin={{ top: 18, right: 72, bottom: 18, left: 72 }}>
           <PolarGrid stroke="#334155" />
           <PolarAngleAxis dataKey="category" tick={<AxisTick />} />
           <Radar dataKey="value" stroke="#818cf8" fill="#6366f1" fillOpacity={0.45} />

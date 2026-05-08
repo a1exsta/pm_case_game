@@ -71,11 +71,12 @@ function calculateResults(questions: Question[], answers: Record<string, number>
 
   const sorted = [...normalized].sort((a, b) => b.percent - a.percent);
   const superpowers = sorted.filter((item) => item.percent > 80).slice(0, 2);
+  const growthZones = [...normalized].filter((item) => item.percent <= 80).sort((a, b) => a.percent - b.percent);
 
   return {
     normalized,
     top2: superpowers,
-    bottom2: [...sorted].reverse().slice(0, 2),
+    bottom2: growthZones,
   };
 }
 
