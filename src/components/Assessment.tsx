@@ -157,11 +157,14 @@ function calculateResults(questions: Question[], answers: Record<string, number>
 
 export default function Assessment() {
   const {
+    playerId,
+    displayName,
     selectedRole,
     selectedLevel,
     currentQuestionIndex,
     hasStarted,
     answers,
+    setDisplayName,
     setRole,
     setLevel,
     startAssessment,
@@ -637,6 +640,21 @@ export default function Assessment() {
           </p>
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Начните оценку навыков</h1>
           <p className="mt-3 text-slate-300">Выбери роль и уровень, чтобы начать персонализированный skill-gaming сценарий.</p>
+          <p className="mt-1 text-xs text-slate-500">ID игрока: {playerId}</p>
+
+          <div className="mt-6">
+            <label htmlFor="displayName" className="mb-2 block text-sm font-medium text-slate-300">
+              Имя
+            </label>
+            <input
+              id="displayName"
+              type="text"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Например, Алексей"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400"
+            />
+          </div>
 
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             <div>
