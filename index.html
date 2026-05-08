@@ -28,6 +28,18 @@
       --cyan: #22d3ee;
       --pink: #e879f9;
     }
+    body[data-theme="light"] {
+      --bg: #eef2ff;
+      --surface: #ffffff;
+      --surface-2: #f4f6ff;
+      --text: #141b32;
+      --muted: #596385;
+      --accent: #635bff;
+      --ok: #059669;
+      --warn: #d97706;
+      --bad: #dc2626;
+      --danger: #b91c1c;
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -53,12 +65,28 @@
         inset 0 1px 0 rgba(255,255,255,.04);
       backdrop-filter: blur(8px);
     }
+    .card.enter { animation: fadeSlide .28s ease; }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px) scale(.995); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
     h1, h2, h3 { font-family: Unbounded, sans-serif; line-height: 1.2; margin: 0 0 12px; }
     p { color: var(--text); margin: 0 0 10px; }
     .muted { color: var(--muted); }
     .top {
       display: flex; justify-content: space-between; align-items: center; gap: 12px;
       margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .theme-btn {
+      background: linear-gradient(90deg, #2a2f47, #1f2438);
+      color: var(--text);
+      border: 1px solid #424a70;
+      min-height: 38px;
+      min-width: 38px;
+      border-radius: 10px;
+      cursor: pointer;
+      font: inherit;
+      padding: 0 10px;
     }
     .score {
       background: rgba(124,109,240,.15);
@@ -72,7 +100,9 @@
     .dot {
       width: 12px; height: 12px; border-radius: 999px; border: 1px solid #404050; background: #22232b;
     }
+    .dot.done { background: #2ebf98; border-color: #2ebf98; }
     .dot.active { background: var(--accent); border-color: var(--accent); }
+    .timeline-labels { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
     .badge {
       display: inline-block;
       background: linear-gradient(90deg, rgba(124,109,240,.28), rgba(232,121,249,.20));
@@ -104,9 +134,18 @@
     .choice.locked { cursor: default; opacity: .8; }
     .stakeholders { display: grid; gap: 8px; margin: 12px 0; }
     .bubble {
-      background: #12131a; border: 1px solid #2c2e3d; border-radius: 10px; padding: 10px;
+      background: #12131a; border: 1px solid #2c2e3d; border-radius: 12px; padding: 10px;
+      display: grid; grid-template-columns: 38px 1fr; gap: 10px; align-items: start;
     }
     .bubble b { color: #d5d9e9; }
+    .avatar {
+      width: 38px; height: 38px; border-radius: 999px;
+      display: grid; place-items: center;
+      font-size: 12px; font-weight: 700;
+      border: 1px solid rgba(255,255,255,.22);
+      color: #fff;
+      background: linear-gradient(120deg, #635bff, #7d75ff);
+    }
     .feedback { margin-top: 14px; padding: 12px; border-radius: 12px; border: 1px solid transparent; }
     .feedback.good { background: rgba(16,185,129,.10); border-color: rgba(16,185,129,.35); }
     .feedback.ok { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.35); }
@@ -639,6 +678,7 @@
       roundScores: [],
       coachMessages: []
     };
+    state.theme = localStorage.getItem("pmTheme") || "dark";
 
     const app = document.getElementById("app");
     const coachModal = document.getElementById("coachModal");
@@ -650,6 +690,7 @@
     const coachApiKey = document.getElementById("coachApiKey");
     const coachCloseBtn = document.getElementById("coachCloseBtn");
     const providerBtns = Array.from(document.querySelectorAll("[data-provider]"));
+    document.body.setAttribute("data-theme", state.theme);
 
     const providerDefaults = {
       openai: {
@@ -1012,6 +1053,31 @@
       return state.roundsData.reduce((acc, round) => acc + (round.scenarios.length * 3), 0);
     }
 
+    function getStakeholderAvatar(name) {
+      const initials = name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+      let bg = "linear-gradient(120deg, #635bff, #7d75ff)";
+      if (/CEO|CPO|COO|CTO/.test(name)) bg = "linear-gradient(120deg, #e879f9, #7c6df0)";
+      if (/QA|Support/.test(name)) bg = "linear-gradient(120deg, #22d3ee, #3b82f6)";
+      if (/Sales|Finance|Business/.test(name)) bg = "linear-gradient(120deg, #f59e0b, #ef4444)";
+      return `<div class="avatar" style="background:${bg};">${initials}</div>`;
+    }
+
+    function renderThemeToggle() {
+      const isLight = state.theme === "light";
+      return `<button class="theme-btn" id="themeBtn" aria-label="Переключить тему">${isLight ? "Dark" : "Light"}</button>`;
+    }
+
+    function bindThemeToggle() {
+      const btn = document.getElementById("themeBtn");
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        state.theme = state.theme === "dark" ? "light" : "dark";
+        localStorage.setItem("pmTheme", state.theme);
+        document.body.setAttribute("data-theme", state.theme);
+        render();
+      });
+    }
+
     function getScenarioIllustration(sc) {
       const key = (sc.competencyKey || "").toLowerCase();
       const svgWrap = (inner) => `
@@ -1326,24 +1392,32 @@ ${answers}`;
     }
 
     function render() {
-      if (state.step === "welcome") return renderWelcome();
-      if (state.step === "roundSummary") return renderRoundSummary();
-      if (state.step === "briefing") return renderBriefing();
-      if (state.step === "decision") return renderDecision();
-      if (state.step === "results") return renderResults();
+      if (state.step === "welcome") renderWelcome();
+      if (state.step === "roundSummary") renderRoundSummary();
+      if (state.step === "briefing") renderBriefing();
+      if (state.step === "decision") renderDecision();
+      if (state.step === "results") renderResults();
+      app.classList.remove("enter");
+      requestAnimationFrame(() => app.classList.add("enter"));
     }
 
     function topBar() {
       const round = getCurrentRound();
-      const dots = round.scenarios.map((_, i) => `<span class="dot ${i === state.idx ? "active" : ""}"></span>`).join("");
+      const dots = round.scenarios.map((_, i) => `<span class="dot ${i < state.idx ? "done" : ""} ${i === state.idx ? "active" : ""}"></span>`).join("");
       const maxScore = getMaxScore();
       return `
         <div class="top">
           <div>
             <div class="dots">${dots}</div>
             <div class="muted" style="margin-top:6px;">Раунд ${state.roundIdx + 1} из ${state.roundsData.length}: ${round.title}</div>
+            <div class="timeline-labels">
+              ${round.scenarios.map((s, i) => `<span class="focus-chip">${i + 1}. ${s.category || s.competency}</span>`).join("")}
+            </div>
           </div>
-          <div class="score">Счёт: ${state.score} / ${maxScore}</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div class="score">Счёт: ${state.score} / ${maxScore}</div>
+            ${renderThemeToggle()}
+          </div>
         </div>
       `;
     }
@@ -1354,7 +1428,7 @@ ${answers}`;
       const previewScenarioCount = previewRounds.reduce((acc, r) => acc + r.scenarios.length, 0) || 9;
       const previewMaxScore = previewRounds.reduce((acc, r) => acc + r.scenarios.length * 3, 0) || 27;
       app.innerHTML = `
-        <span class="badge">PM CASE GAME</span>
+        <div class="top"><span class="badge">PM CASE GAME</span>${renderThemeToggle()}</div>
         <h1>Запуск продукта: критические решения</h1>
         <div class="hero">
           <p style="margin-bottom:8px;"><b>Иммерсивная симуляция для PM/PMO</b></p>
@@ -1394,6 +1468,7 @@ ${answers}`;
         state.step = "briefing";
         render();
       });
+      bindThemeToggle();
     }
 
     function renderBriefing() {
@@ -1408,11 +1483,12 @@ ${answers}`;
         <p class="muted"><b>Категория:</b> ${sc.category || sc.competency}</p>
         <p class="muted"><b>Тренируемый скилл:</b> ${sc.competency}</p>
         <div class="stakeholders">
-          ${sc.stakeholders.map((s) => `<div class="bubble"><b>${s.name}:</b> ${s.text}</div>`).join("")}
+          ${sc.stakeholders.map((s) => `<div class="bubble">${getStakeholderAvatar(s.name)}<div><b>${s.name}:</b> ${s.text}</div></div>`).join("")}
         </div>
         <button class="btn" id="toDecision">К решению</button>
       `;
       document.getElementById("toDecision").addEventListener("click", () => { state.step = "decision"; render(); });
+      bindThemeToggle();
     }
 
     function renderDecision() {
@@ -1456,6 +1532,7 @@ ${answers}`;
           });
         });
       }
+      bindThemeToggle();
     }
 
     function showFeedback(choice, locked) {
@@ -1516,6 +1593,7 @@ ${answers}`;
         state.step = "briefing";
         render();
       });
+      bindThemeToggle();
     }
 
     function renderResults() {
@@ -1601,6 +1679,7 @@ ${answers}`;
       document.getElementById("shareBtn").addEventListener("click", () => {
         shareResults().catch(() => alert("Не удалось поделиться автоматически. Попробуйте еще раз."));
       });
+      bindThemeToggle();
     }
 
     coachSendBtn.addEventListener("click", () => { sendCoachMessage(); });
