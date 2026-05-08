@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { assessmentData, getQuestionScenario } from "../data/questions";
-import { useAssessmentStore } from "../store/useStore";
+import { useAssessmentStore, type CategoryScoreMap } from "../store/useStore";
 import RadarChart from "./RadarChart";
 
 type Question = (typeof assessmentData.questions)[number];
@@ -35,6 +35,21 @@ interface ChatMessage {
   content: string;
 }
 
+interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+}
+
+const ACHIEVEMENTS: Achievement[] = [
+  { id: "finisher", title: "Финишер", description: "Завершено первое прохождение." },
+  { id: "green-master", title: "Green Master", description: "2+ категории в зеленой зоне." },
+  { id: "stable-player", title: "Стабильная игра", description: "Нет категорий в красной зоне." },
+  { id: "risk-pro", title: "Риск-профи", description: "Управление рисками 80%+." },
+  { id: "strategy-pro", title: "Стратег", description: "Продуктовая стратегия 80%+." },
+  { id: "streak-3", title: "Серия 3", description: "Серия из 3 дней подряд." },
+];
+
 function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -45,6 +60,23 @@ function downloadFile(filename: string, content: string, mimeType: string) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+    } else {
+      if (current) lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
 }
 
 function hashString(value: string) {
@@ -115,6 +147,34 @@ function getAnswerFeedbackStyle(points: number, allPoints: number[]) {
   };
 }
 
+function getAnswerTier(points: number, allPoints: number[]) {
+  const sorted = [...allPoints].sort((a, b) => a - b);
+  const min = sorted[0] ?? 0;
+  const max = sorted[sorted.length - 1] ?? 0;
+  if (points >= max) return "strong";
+  if (points <= min) return "weak";
+  return "medium";
+}
+
+function xpForTier(tier: "strong" | "medium" | "weak") {
+  if (tier === "strong") return 10;
+  if (tier === "medium") return 6;
+  return 3;
+}
+
+function computeAchievementIds(normalized: Array<{ category: string; percent: number }>) {
+  const ids = ["finisher"];
+  const greenCount = normalized.filter((item) => item.percent > 80).length;
+  const hasRed = normalized.some((item) => item.percent < 50);
+  const risk = normalized.find((item) => item.category === "Risk Management");
+  const strategy = normalized.find((item) => item.category === "Product Strategy");
+  if (greenCount >= 2) ids.push("green-master");
+  if (!hasRed) ids.push("stable-player");
+  if (risk && risk.percent >= 80) ids.push("risk-pro");
+  if (strategy && strategy.percent >= 80) ids.push("strategy-pro");
+  return ids;
+}
+
 function calculateResults(questions: Question[], answers: Record<string, number>) {
   const perCategory: Record<string, { score: number; max: number }> = {};
 
@@ -164,11 +224,17 @@ export default function Assessment() {
     currentQuestionIndex,
     hasStarted,
     answers,
+    totalXp,
+    streakDays,
+    unlockedAchievementIds,
+    previousCategoryScores,
     setDisplayName,
     setRole,
     setLevel,
     startAssessment,
     selectAnswer,
+    awardXp,
+    registerCompletion,
     nextQuestion,
     prevQuestion,
     resetAssessment,
@@ -181,6 +247,9 @@ export default function Assessment() {
   const selectedTrackLabel = selectedRole && selectedLevel ? `${roleLabels[selectedRole]} · ${levelLabels[selectedLevel]}` : "";
 
   const results = calculateResults(filteredQuestions, answers);
+  const playerLevel = Math.floor(totalXp / 120) + 1;
+  const xpInLevel = totalXp % 120;
+  const xpToNext = 120 - xpInLevel;
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -188,6 +257,8 @@ export default function Assessment() {
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const questionActionsRef = useRef<HTMLDivElement | null>(null);
   const [lastCheckpointSeen, setLastCheckpointSeen] = useState(0);
+  const completionPersistedRef = useRef(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const chatSystemContext = useMemo(() => {
     if (!selectedTrackLabel) {
@@ -222,6 +293,22 @@ export default function Assessment() {
       setLastCheckpointSeen(0);
     }
   }, [hasStarted, selectedRole, selectedLevel]);
+
+  useEffect(() => {
+    if (isCompleted && !completionPersistedRef.current) {
+      const achievementIds = computeAchievementIds(results.normalized.map((item) => ({ category: item.category, percent: item.percent })));
+      if (streakDays >= 2) {
+        achievementIds.push("streak-3");
+      }
+      const scoreMap: CategoryScoreMap = Object.fromEntries(results.normalized.map((item) => [item.category, item.percent]));
+      registerCompletion(scoreMap, achievementIds);
+      completionPersistedRef.current = true;
+      return;
+    }
+    if (!isCompleted) {
+      completionPersistedRef.current = false;
+    }
+  }, [isCompleted, results.normalized, registerCompletion, streakDays]);
 
   const exportAssessmentResults = () => {
     const payload = {
@@ -266,6 +353,96 @@ export default function Assessment() {
       .join("\n\n---\n\n");
 
     downloadFile(`gigachat-dialog-${Date.now()}.txt`, `${header}${body}`, "text/plain;charset=utf-8");
+  };
+
+  const shareTopCategories = [...results.normalized]
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 3)
+    .map((item) => `${displayCategory(item.category)} ${item.percent}%`);
+
+  const shareText = [
+    `Я прошел(а) Skill Game: ${selectedTrackLabel || "Без трека"}`,
+    `Игрок: ${displayName?.trim() || "Аноним"}`,
+    `Уровень ${playerLevel} · XP ${totalXp} · серия ${streakDays} дн.`,
+    `Топ навыки: ${shareTopCategories.join(", ") || "данные в процессе"}`,
+  ].join("\n");
+
+  const copyShareText = async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareText);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = shareText;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+      }
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      setShareCopied(false);
+    }
+  };
+
+  const downloadShareCard = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1200;
+    canvas.height = 630;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, "#0f172a");
+    gradient.addColorStop(1, "#111827");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#22d3ee";
+    ctx.font = "700 34px Inter, Arial";
+    ctx.fillText("Skill Game Report", 64, 84);
+
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "600 48px Inter, Arial";
+    ctx.fillText(displayName?.trim() || "Аноним", 64, 156);
+
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = "500 28px Inter, Arial";
+    ctx.fillText(selectedTrackLabel || "Трек не выбран", 64, 206);
+    ctx.fillText(`Level ${playerLevel}   XP ${totalXp}   Streak ${streakDays}d`, 64, 250);
+
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "600 28px Inter, Arial";
+    ctx.fillText("Top skills", 64, 322);
+
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "500 26px Inter, Arial";
+    const skillLines = shareTopCategories.length > 0 ? shareTopCategories : ["Пройдите оценку, чтобы получить результаты"];
+    let y = 366;
+    for (const line of skillLines) {
+      const wrapped = wrapText(ctx, `• ${line}`, 1060);
+      for (const part of wrapped) {
+        ctx.fillText(part, 64, y);
+        y += 34;
+      }
+    }
+
+    ctx.fillStyle = "#64748b";
+    ctx.font = "500 20px Inter, Arial";
+    ctx.fillText("pm_case_game", 64, 584);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `skill-game-card-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }, "image/png");
   };
 
   const sendChatMessage = async () => {
@@ -341,6 +518,9 @@ export default function Assessment() {
             <h1 className="text-3xl font-semibold">Панель результатов</h1>
             <p className="mt-2 text-slate-300">Нормализованные результаты по категориям и зоны развития.</p>
             {selectedTrackLabel ? <p className="mt-1 text-sm text-slate-400">Трек: {selectedTrackLabel}</p> : null}
+            <p className="mt-1 text-sm text-slate-400">
+              Уровень {playerLevel} · XP {totalXp} · серия {streakDays} дн.
+            </p>
 
             <div className="mt-8 grid gap-8 lg:grid-cols-2">
               <RadarChart data={results.normalized.map((item) => ({ category: displayCategory(item.category), value: item.percent }))} />
@@ -377,6 +557,84 @@ export default function Assessment() {
                   <p className="mt-3 text-sm text-slate-300">{item.recommendation}</p>
                 </details>
               ))}
+            </div>
+
+            {previousCategoryScores ? (
+              <div className="mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+                <h3 className="text-lg font-semibold text-cyan-200">Прогресс с прошлого прохождения</h3>
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {results.normalized.map((item) => {
+                    const prev = previousCategoryScores[item.category];
+                    if (typeof prev !== "number") return null;
+                    const delta = item.percent - prev;
+                    const deltaColor = delta > 0 ? "text-emerald-300" : delta < 0 ? "text-rose-300" : "text-slate-400";
+                    return (
+                      <p key={`delta-${item.category}`} className="text-sm text-slate-300">
+                        {displayCategory(item.category)}: {prev}% → {item.percent}%{" "}
+                        <span className={deltaColor}>
+                          ({delta > 0 ? "+" : ""}
+                          {delta}%)
+                        </span>
+                      </p>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+              <h3 className="text-lg font-semibold text-indigo-200">Достижения</h3>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {ACHIEVEMENTS.map((achievement) => {
+                  const unlocked = unlockedAchievementIds.includes(achievement.id);
+                  return (
+                    <div
+                      key={achievement.id}
+                      className={`rounded-lg border px-3 py-2 ${
+                        unlocked ? "border-emerald-500/40 bg-emerald-500/10" : "border-slate-700 bg-slate-950/40"
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${unlocked ? "text-emerald-200" : "text-slate-400"}`}>{achievement.title}</p>
+                      <p className="text-xs text-slate-400">{achievement.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
+              <h3 className="text-lg font-semibold text-violet-200">Share-card</h3>
+              <p className="mt-1 text-sm text-slate-400">Сформируйте карточку результата для публикации и скопируйте текст.</p>
+              <div className="mt-4 rounded-xl border border-violet-500/30 bg-gradient-to-br from-indigo-500/20 via-slate-900 to-cyan-500/10 p-4">
+                <p className="text-xs uppercase tracking-wide text-cyan-200">Skill Game Report</p>
+                <p className="mt-1 text-xl font-semibold text-white">{displayName?.trim() || "Аноним"}</p>
+                <p className="mt-1 text-sm text-slate-300">{selectedTrackLabel || "Трек не выбран"}</p>
+                <p className="mt-1 text-sm text-slate-300">
+                  Уровень {playerLevel} · XP {totalXp} · серия {streakDays} дн.
+                </p>
+                <p className="mt-3 text-xs uppercase tracking-wide text-violet-200">Топ навыки</p>
+                {shareTopCategories.length > 0 ? (
+                  <p className="mt-1 text-sm text-slate-200">{shareTopCategories.join(" · ")}</p>
+                ) : (
+                  <p className="mt-1 text-sm text-slate-400">Пройдите оценку, чтобы увидеть top-навыки.</p>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={downloadShareCard}
+                  className="rounded-xl border border-violet-500/60 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-200 hover:bg-violet-500/20"
+                >
+                  Скачать share-card (PNG)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void copyShareText()}
+                  className="rounded-xl border border-cyan-500/60 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/20"
+                >
+                  {shareCopied ? "Текст скопирован" : "Скопировать текст"}
+                </button>
+              </div>
             </div>
 
             <button
@@ -536,6 +794,9 @@ export default function Assessment() {
                 <span>{progress}%</span>
               </div>
               {selectedTrackLabel ? <p className="mb-2 text-xs text-slate-400">Трек: {selectedTrackLabel}</p> : null}
+              <p className="mb-2 text-xs text-slate-400">
+                Уровень {playerLevel} · XP {totalXp} · до следующего: {xpToNext}
+              </p>
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
                 <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${progress}%` }} />
               </div>
@@ -582,7 +843,11 @@ export default function Assessment() {
                     key={`${currentQuestion.id}-${originalIndex}`}
                     type="button"
                     disabled={isLocked}
-                    onClick={() => selectAnswer(currentQuestion.id, originalIndex)}
+                    onClick={() => {
+                      const tier = getAnswerTier(option.points, currentQuestion.options.map((item) => item.points));
+                      awardXp(xpForTier(tier));
+                      selectAnswer(currentQuestion.id, originalIndex);
+                    }}
                     className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                       isSelected
                         ? "border-indigo-400 bg-indigo-500/20 text-white"
@@ -641,6 +906,9 @@ export default function Assessment() {
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Начните оценку навыков</h1>
           <p className="mt-3 text-slate-300">Выбери роль и уровень, чтобы начать персонализированный skill-gaming сценарий.</p>
           <p className="mt-1 text-xs text-slate-500">ID игрока: {playerId}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Уровень {playerLevel} · XP {totalXp} · серия {streakDays} дн.
+          </p>
 
           <div className="mt-6">
             <label htmlFor="displayName" className="mb-2 block text-sm font-medium text-slate-300">
