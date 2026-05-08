@@ -1,4 +1,4 @@
-import { assessmentData } from "../data/questions";
+import { assessmentData, getQuestionScenario } from "../data/questions";
 import { useAssessmentStore } from "../store/useStore";
 import RadarChart from "./RadarChart";
 
@@ -98,6 +98,7 @@ export default function Assessment() {
   const filteredQuestions = assessmentData.questions.filter((item) => item.role === selectedRole && item.level === selectedLevel);
   const currentQuestion = filteredQuestions[currentQuestionIndex];
   const isCompleted = hasStarted && filteredQuestions.length > 0 && Object.keys(answers).length >= filteredQuestions.length;
+  const selectedTrackLabel = selectedRole && selectedLevel ? `${roleLabels[selectedRole]} · ${levelLabels[selectedLevel]}` : "";
 
   const results = calculateResults(filteredQuestions, answers);
 
@@ -129,6 +130,7 @@ export default function Assessment() {
           <section className="rounded-3xl border border-panelBorder bg-panel/90 p-8 shadow-premium">
             <h1 className="text-3xl font-semibold">Панель результатов</h1>
             <p className="mt-2 text-slate-300">Нормализованные результаты по категориям и зоны развития.</p>
+            {selectedTrackLabel ? <p className="mt-1 text-sm text-slate-400">Трек: {selectedTrackLabel}</p> : null}
 
             <div className="mt-8 grid gap-8 lg:grid-cols-2">
               <RadarChart data={results.normalized.map((item) => ({ category: displayCategory(item.category), value: item.percent }))} />
@@ -180,6 +182,7 @@ export default function Assessment() {
     const selectedOptionIndex = answers[currentQuestion.id];
     const selectedFeedback = typeof selectedOptionIndex === "number" ? currentQuestion.options[selectedOptionIndex]?.feedback : "";
     const progress = Math.round(((currentQuestionIndex + 1) / filteredQuestions.length) * 100);
+    const scenario = getQuestionScenario(currentQuestion, selectedRole!, selectedLevel!);
 
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
@@ -192,14 +195,41 @@ export default function Assessment() {
                 </span>
                 <span>{progress}%</span>
               </div>
+              {selectedTrackLabel ? <p className="mb-2 text-xs text-slate-400">Трек: {selectedTrackLabel}</p> : null}
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
                 <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${progress}%` }} />
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={resetAssessment}
+                  className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                >
+                  Начать заново
+                </button>
               </div>
             </div>
 
             <p className="inline-flex rounded-full border border-indigo-400/40 bg-indigo-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-200">
               {displayCategory(currentQuestion.category)}
             </p>
+            <div className="mt-4 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-200">Сценарий кейса</p>
+              <p className="mt-2 text-sm text-slate-200">{scenario.context}</p>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {scenario.stakeholders.map((stakeholder, idx) => (
+                <div key={`${currentQuestion.id}-stakeholder-${idx}`} className="flex items-start gap-3 rounded-xl border border-slate-700 bg-slate-900/70 p-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-600 bg-slate-800 text-lg">
+                    {stakeholder.emoji}
+                  </div>
+                  <p className="text-sm text-slate-200">
+                    <span className="font-semibold text-white">{stakeholder.role}:</span> {stakeholder.line}
+                  </p>
+                </div>
+              ))}
+            </div>
             <h2 className="mt-3 text-2xl font-semibold">{currentQuestion.question}</h2>
 
             <div className="mt-6 space-y-3">

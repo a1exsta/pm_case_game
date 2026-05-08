@@ -542,3 +542,264 @@ export const assessmentData = {
 } as const;
 
 export type AssessmentData = typeof assessmentData;
+export type AssessmentRole = AssessmentData["roles"][number];
+export type AssessmentLevel = AssessmentData["levels"][number];
+export type AssessmentQuestion = AssessmentData["questions"][number];
+
+export interface StakeholderLine {
+  role: string;
+  line: string;
+  emoji: string;
+}
+
+const roleNarrative: Record<AssessmentRole, string> = {
+  "Product Manager": "Вы управляете продуктовой ценностью и балансируете рост, качество и экономику.",
+  "Project Manager": "Вы управляете delivery, рисками и синхронизацией команд и стейкхолдеров.",
+};
+
+const levelNarrative: Record<AssessmentLevel, string> = {
+  Junior: "Уровень сложности: базовый. Фокус на четком и практичном решении.",
+  Middle: "Уровень сложности: рабочий. Важно учесть зависимости и влияние на KPI.",
+  Senior: "Уровень сложности: стратегический. Цена ошибки выше, важны trade-offs.",
+};
+
+const categoryCaseHooks: Record<string, string> = {
+  Prioritization: "В бэклоге конфликт приоритетов: бизнес давит на скорость, команда - на устойчивость.",
+  "Discovery & Analytics": "Метрики и обратная связь расходятся, нужно определить реальную причину проблемы.",
+  "Product Strategy": "Решение влияет на позиционирование продукта и квартальные цели компании.",
+  "AI & Tech Context": "AI-функция дает ценность, но есть риск по качеству, стоимости и предсказуемости.",
+  "Risk Management": "В проекте появился критичный риск, требуется план с владельцами и сроками.",
+  "Planning & Delivery": "Сроки и объем начинают расходиться, нужно стабилизировать delivery.",
+  "Stakeholder Management": "Ключевые стейкхолдеры тянут проект в разные стороны и ждут обоснованного решения.",
+  "Process Optimization": "Текущий процесс тормозит команду; нужно убрать узкие места без потери прозрачности.",
+};
+
+const categoryStakeholders: Record<string, StakeholderLine[]> = {
+  Prioritization: [
+    { role: "CEO", line: "Нужен быстрый результат в этом квартале.", emoji: "👩‍💼" },
+    { role: "CTO", line: "Без фокуса на техдолге скорость скоро упадет.", emoji: "🧑‍💻" },
+    { role: "Sales Lead", line: "Клиенты уже ждут несколько конкретных фич.", emoji: "🧑‍💼" },
+  ],
+  "Discovery & Analytics": [
+    { role: "Head of Analytics", line: "Цифры проседают на середине воронки.", emoji: "📊" },
+    { role: "Research Lead", line: "Интервью показывают другую проблему, не ту что в отчетах.", emoji: "🔎" },
+    { role: "CEO", line: "Нужна понятная гипотеза и быстрый план проверки.", emoji: "👩‍💼" },
+  ],
+  "Product Strategy": [
+    { role: "CEO", line: "Нужно решение, которое усилит позицию на рынке.", emoji: "👩‍💼" },
+    { role: "CPO", line: "Важно не потерять фокус портфеля и ценность для сегмента.", emoji: "🧠" },
+    { role: "Finance", line: "Просьба показать влияние на выручку и маржинальность.", emoji: "💰" },
+  ],
+  "AI & Tech Context": [
+    { role: "CTO", line: "Качество ответа модели нестабильно в части кейсов.", emoji: "🧑‍💻" },
+    { role: "ML Engineer", line: "Можно снизить стоимость, но возможен компромисс по качеству.", emoji: "🤖" },
+    { role: "QA", line: "Нужны четкие ограничения и контроль ошибок в проде.", emoji: "🧪" },
+  ],
+  "Risk Management": [
+    { role: "Project Sponsor", line: "Ключевой риск уже влияет на критический путь.", emoji: "👔" },
+    { role: "QA", line: "При текущем темпе риск дефекта на релизе высокий.", emoji: "🧪" },
+    { role: "Tech Lead", line: "Нужен mitigation-план с owner и конкретными шагами.", emoji: "🧑‍💻" },
+  ],
+  "Planning & Delivery": [
+    { role: "Delivery Lead", line: "Velocity падает, backlog растет быстрее плана.", emoji: "📦" },
+    { role: "CTO", line: "Нужно пересобрать план с учетом ограничений команды.", emoji: "🧑‍💻" },
+    { role: "CEO", line: "Ожидаю реалистичную дату и прозрачные компромиссы.", emoji: "👩‍💼" },
+  ],
+  "Stakeholder Management": [
+    { role: "CEO", line: "Мне нужен ответ сегодня, без затягивания.", emoji: "👩‍💼" },
+    { role: "CTO", line: "Решение должно учитывать технические риски.", emoji: "🧑‍💻" },
+    { role: "Customer", line: "Для нас критичны сроки и предсказуемость изменений.", emoji: "🤝" },
+  ],
+  "Process Optimization": [
+    { role: "QA", line: "Много ручных шагов и повторяющихся ошибок в процессе.", emoji: "🧪" },
+    { role: "Engineering Manager", line: "Команда теряет время на операционные переключения.", emoji: "⚙️" },
+    { role: "COO", line: "Нужно улучшить процесс без остановки delivery.", emoji: "📈" },
+  ],
+};
+
+const questionStakeholdersById: Record<string, StakeholderLine[]> = {
+  pm_prioritization_1: [
+    { role: "CEO", line: "Нужен список приоритетов уже к утру.", emoji: "👩‍💼" },
+    { role: "CTO", line: "Если перегрузим спринт, часть задач уйдет в брак.", emoji: "🧑‍💻" },
+  ],
+  pm_prioritization_2: [
+    { role: "CFO", line: "Рост выручки важен, но churn бьет по LTV.", emoji: "💰" },
+    { role: "Head of CS", line: "Отток клиентов уже влияет на NRR.", emoji: "🤝" },
+  ],
+  pm_prioritization_3: [
+    { role: "CTO", line: "Техдолг тормозит команды на каждом релизе.", emoji: "🧑‍💻" },
+    { role: "CEO", line: "Нужно решение без просадки бизнес-скорости.", emoji: "👩‍💼" },
+  ],
+  pm_prioritization_4: [
+    { role: "Sales Lead", line: "Клиент грозит пересмотреть контракт.", emoji: "🧑‍💼" },
+    { role: "CPO", line: "Нам важно не превратить продукт в кастомную разработку.", emoji: "🧠" },
+  ],
+  pm_prioritization_5: [
+    { role: "Board Member", line: "Инвесторы ждут ускорение квартал к кварталу.", emoji: "🏛️" },
+    { role: "Engineering Manager", line: "Без стабилизации мы теряем предсказуемость delivery.", emoji: "⚙️" },
+  ],
+  pm_discovery_1: [
+    { role: "Аналитик", line: "CTR высокий, но drop-off после второго шага.", emoji: "📊" },
+    { role: "UX Lead", line: "Похоже, пользователи не понимают ценность следующего действия.", emoji: "🎯" },
+  ],
+  pm_discovery_2: [
+    { role: "Customer Success", line: "Новые клиенты теряются в первые 15 минут.", emoji: "🤝" },
+    { role: "Designer", line: "Нужны данные, где именно ломается сценарий.", emoji: "🎨" },
+  ],
+  pm_discovery_3: [
+    { role: "CEO", line: "Выручка растет, но удержание тревожит совет директоров.", emoji: "👩‍💼" },
+    { role: "Head of Analytics", line: "Просадка retention сильнее в enterprise-сегменте.", emoji: "📈" },
+  ],
+  pm_discovery_4: [
+    { role: "Partnership Manager", line: "Интеграцию просят уже три потенциальных клиента.", emoji: "🤝" },
+    { role: "CTO", line: "Без валидации спроса риск потратить спринт впустую.", emoji: "🧑‍💻" },
+  ],
+  pm_discovery_5: [
+    { role: "Research Lead", line: "Интервью говорят про боль в onboarding, не в функционале.", emoji: "🔎" },
+    { role: "Data Analyst", line: "По цифрам провал на этапе активации.", emoji: "📊" },
+  ],
+  pm_strategy_1: [
+    { role: "CEO", line: "Нужен четкий фокус на сегмент с максимальным потенциалом.", emoji: "👩‍💼" },
+    { role: "Sales Director", line: "Команда продаж просит понятный ICP для выхода.", emoji: "🧑‍💼" },
+  ],
+  pm_strategy_2: [
+    { role: "CFO", line: "Резкое снижение цены ударит по марже.", emoji: "💰" },
+    { role: "CPO", line: "Нам нужна дифференциация, а не только ценовая гонка.", emoji: "🧠" },
+  ],
+  pm_strategy_3: [
+    { role: "Head of Product", line: "Продукты каннибализируют друг друга в одном сегменте.", emoji: "🧠" },
+    { role: "Finance", line: "Нужен расчет эффекта до изменения портфеля.", emoji: "💰" },
+  ],
+  pm_strategy_4: [
+    { role: "CEO", line: "Три большие фичи должны попасть в квартальный план.", emoji: "👩‍💼" },
+    { role: "Tech Lead", line: "Capacity команды ограничен, нужен выбор.", emoji: "🧑‍💻" },
+  ],
+  pm_strategy_5: [
+    { role: "Regional Lead", line: "Выход сразу в несколько стран увеличит операционные риски.", emoji: "🌍" },
+    { role: "Legal", line: "Для каждого рынка свои требования к данным и контрактам.", emoji: "⚖️" },
+  ],
+  pm_ai_1: [
+    { role: "QA", line: "Часть ответов ассистента противоречит документации.", emoji: "🧪" },
+    { role: "Support", line: "Пользователи уже присылают скриншоты ошибок.", emoji: "🛟" },
+  ],
+  pm_ai_2: [
+    { role: "Finance", line: "Себестоимость запросов растет быстрее выручки.", emoji: "💰" },
+    { role: "ML Engineer", line: "Оптимизация промптов может дать заметную экономию.", emoji: "🤖" },
+  ],
+  pm_ai_3: [
+    { role: "Enterprise Client", line: "Ошибки AI в процессе согласования недопустимы.", emoji: "🏢" },
+    { role: "CTO", line: "Нужны пороги уверенности и контроль человеком.", emoji: "🧑‍💻" },
+  ],
+  pm_ai_4: [
+    { role: "ML Engineer", line: "Новая модель лучше по quality, но дороже в 2 раза.", emoji: "🤖" },
+    { role: "Product Analyst", line: "Нужно сравнение по cost/latency/quality.", emoji: "📊" },
+  ],
+  pm_ai_5: [
+    { role: "Legal", line: "Enterprise-клиенты запрашивают объяснимость решений.", emoji: "⚖️" },
+    { role: "Security Officer", line: "Нужен аудит решений и источников данных.", emoji: "🔐" },
+  ],
+  pjm_risk_1: [
+    { role: "Project Sponsor", line: "Риск интеграции уже в красной зоне.", emoji: "👔" },
+    { role: "Tech Lead", line: "Без owner и mitigation мы сорвем milestone.", emoji: "🧑‍💻" },
+  ],
+  pjm_risk_2: [
+    { role: "Vendor Manager", line: "Подрядчик второй раз срывает обещанные даты.", emoji: "📦" },
+    { role: "PMO", line: "Нужен fallback-сценарий до следующего отчета.", emoji: "🗂️" },
+  ],
+  pjm_risk_3: [
+    { role: "CFO", line: "Превышение бюджета в 20% требует немедленной эскалации.", emoji: "💰" },
+    { role: "Sponsor", line: "Жду варианты, а не только констатацию проблемы.", emoji: "👔" },
+  ],
+  pjm_risk_4: [
+    { role: "CTO", line: "Внешний API нестабилен в пиковые часы.", emoji: "🧑‍💻" },
+    { role: "SRE", line: "Нужен fallback и четкий runbook на деградацию.", emoji: "🛠️" },
+  ],
+  pjm_risk_5: [
+    { role: "QA", line: "High severity дефект затрагивает критичный сценарий оплаты.", emoji: "🧪" },
+    { role: "CEO", line: "Решение по go/no-go должно быть сегодня.", emoji: "👩‍💼" },
+  ],
+  pjm_planning_1: [
+    { role: "Scrum Master", line: "В середине спринта прилетает слишком много изменений.", emoji: "🗓️" },
+    { role: "Team Lead", line: "Команда теряет фокус и не успевает закрывать committed scope.", emoji: "⚙️" },
+  ],
+  pjm_planning_2: [
+    { role: "Delivery Manager", line: "Velocity падает второй спринт подряд.", emoji: "📦" },
+    { role: "HRBP", line: "Есть сигналы перегруза и утомления команды.", emoji: "🧭" },
+  ],
+  pjm_planning_3: [
+    { role: "CEO", line: "Срок фиксирован контрактными обязательствами.", emoji: "👩‍💼" },
+    { role: "CTO", line: "Объем вырос, без реприоритизации дедлайн нереален.", emoji: "🧑‍💻" },
+  ],
+  pjm_planning_4: [
+    { role: "Program Manager", line: "Зависимости между командами блокируют релизный план.", emoji: "🗂️" },
+    { role: "Architect", line: "Нужен единый dependency map и синхронизация точек интеграции.", emoji: "🏗️" },
+  ],
+  pjm_planning_5: [
+    { role: "COO", line: "Хочу weekly-видимость по проекту без лишнего шума.", emoji: "📈" },
+    { role: "Team Lead", line: "Команда тратит слишком много времени на ручную отчетность.", emoji: "⚙️" },
+  ],
+  pjm_stakeholder_1: [
+    { role: "CEO", line: "Приоритет номер один - запуск в срок.", emoji: "👩‍💼" },
+    { role: "CTO", line: "Без доп. времени качество будет под риском.", emoji: "🧑‍💻" },
+  ],
+  pjm_stakeholder_2: [
+    { role: "CEO", line: "Мне нужны ежедневные апдейты до закрытия риска.", emoji: "👩‍💼" },
+    { role: "Team", line: "Если отчетность разрастется, мы потеряем скорость.", emoji: "👥" },
+  ],
+  pjm_stakeholder_3: [
+    { role: "Business Director", line: "Релиз раньше даст сильный коммерческий эффект.", emoji: "💼" },
+    { role: "Engineering Lead", line: "Ранний релиз увеличивает вероятность инцидента.", emoji: "🧑‍💻" },
+  ],
+  pjm_stakeholder_4: [
+    { role: "Client", line: "Если темп не выровняется, мы поднимем эскалацию в совет.", emoji: "🏢" },
+    { role: "Account Manager", line: "Нужен прозрачный и реалистичный план восстановления.", emoji: "🤝" },
+  ],
+  pjm_stakeholder_5: [
+    { role: "Steering Committee", line: "Каждый руководитель тянет свой KPI как главный.", emoji: "🏛️" },
+    { role: "PMO Lead", line: "Без единой KPI-рамки управление расползается.", emoji: "🗂️" },
+  ],
+  pjm_process_1: [
+    { role: "QA", line: "Ручные проверки занимают до 2 дней перед релизом.", emoji: "🧪" },
+    { role: "DevOps", line: "Часть шагов можно автоматизировать за один спринт.", emoji: "🛠️" },
+  ],
+  pjm_process_2: [
+    { role: "Delivery Manager", line: "Cycle time вырос, команды простаивают на handoff.", emoji: "📦" },
+    { role: "Agile Coach", line: "Нужно увидеть bottleneck, а не лечить симптомы.", emoji: "🧭" },
+  ],
+  pjm_process_3: [
+    { role: "Team Lead", line: "Календарь забит встречами, времени на фокус мало.", emoji: "⚙️" },
+    { role: "COO", line: "Прозрачность должна сохраниться даже после сокращения ритуалов.", emoji: "📈" },
+  ],
+  pjm_process_4: [
+    { role: "Scrum Master", line: "На ретро много идей, но почти ничего не доходит до результата.", emoji: "🗓️" },
+    { role: "Team", line: "Нужны короткие и выполнимые action items.", emoji: "👥" },
+  ],
+  pjm_process_5: [
+    { role: "Program Director", line: "Новая модель должна заработать сразу в нескольких командах.", emoji: "🏛️" },
+    { role: "Engineering Manager", line: "Лучше пройти через пилот, чтобы не сломать delivery.", emoji: "⚙️" },
+  ],
+};
+
+export interface QuestionScenario {
+  context: string;
+  stakeholders: StakeholderLine[];
+}
+
+function createQuestionScenario(question: AssessmentQuestion): QuestionScenario {
+  const hook = categoryCaseHooks[question.category] ?? "Перед вами управленческий кейс с несколькими ограничениями.";
+  const rolePart = roleNarrative[question.role];
+  const levelPart = levelNarrative[question.level];
+  const intro = `Кейс: ${question.question}`;
+  return {
+    context: `${rolePart} ${levelPart} ${hook} ${intro}`,
+    stakeholders: questionStakeholdersById[question.id] ?? categoryStakeholders[question.category] ?? [],
+  };
+}
+
+export const questionScenariosById: Record<string, QuestionScenario> = Object.fromEntries(
+  assessmentData.questions.map((question) => [question.id, createQuestionScenario(question)]),
+);
+
+export function getQuestionScenario(question: AssessmentQuestion, _role: AssessmentRole, _level: AssessmentLevel) {
+  return questionScenariosById[question.id] ?? createQuestionScenario(question);
+}
