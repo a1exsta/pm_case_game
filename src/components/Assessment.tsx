@@ -127,6 +127,7 @@ export default function Assessment() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const [lastCheckpointSeen, setLastCheckpointSeen] = useState(0);
 
   const chatSystemContext = useMemo(() => {
     if (!selectedTrackLabel) {
@@ -148,6 +149,12 @@ export default function Assessment() {
     setChatError("");
     setChatLoading(false);
   }, [isCompleted]);
+
+  useEffect(() => {
+    if (!hasStarted) {
+      setLastCheckpointSeen(0);
+    }
+  }, [hasStarted, selectedRole, selectedLevel]);
 
   const exportAssessmentResults = () => {
     const payload = {
@@ -398,6 +405,51 @@ export default function Assessment() {
     const selectedFeedback = typeof selectedOptionIndex === "number" ? currentQuestion.options[selectedOptionIndex]?.feedback : "";
     const progress = Math.round(((currentQuestionIndex + 1) / filteredQuestions.length) * 100);
     const scenario = getQuestionScenario(currentQuestion, selectedRole!, selectedLevel!);
+    const checkpointSize = 4;
+    const shouldShowCheckpoint = currentQuestionIndex > 0 && currentQuestionIndex % checkpointSize === 0 && currentQuestionIndex > lastCheckpointSeen;
+
+    if (shouldShowCheckpoint) {
+      const answeredSubset = filteredQuestions.slice(0, currentQuestionIndex);
+      const interim = calculateResults(answeredSubset, answers);
+      const answeredCount = answeredSubset.length;
+      const topInterim = [...interim.normalized].sort((a, b) => b.percent - a.percent).slice(0, 3);
+
+      return (
+        <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+          <main className="relative mx-auto flex min-h-screen w-full max-w-5xl items-center px-4 py-8">
+            <section className="w-full rounded-3xl border border-panelBorder bg-panel/90 p-8 shadow-premium">
+              <p className="inline-flex rounded-full border border-cyan-400/40 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-200">
+                Промежуточный итог
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold">Вы прошли {answeredCount} вопросов</h2>
+              <p className="mt-2 text-slate-300">
+                Текущий трек: {selectedTrackLabel}. Прогресс: {Math.round((answeredCount / filteredQuestions.length) * 100)}%.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                {topInterim.map((item) => (
+                  <div key={`interim-${item.category}`} className="rounded-xl border border-slate-700 bg-slate-900/70 p-4">
+                    <p className="text-sm text-slate-300">{displayCategory(item.category)}</p>
+                    <p className="mt-1 text-xl font-semibold text-white">{item.percent}%</p>
+                    <p className={`mt-1 text-xs ${zoneColor(item.percent)}`}>{item.zone}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setLastCheckpointSeen(currentQuestionIndex)}
+                  className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-2.5 text-sm font-semibold text-white"
+                >
+                  Продолжить
+                </button>
+              </div>
+            </section>
+          </main>
+        </div>
+      );
+    }
 
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
