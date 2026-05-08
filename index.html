@@ -746,6 +746,7 @@
       coachMessages: []
     };
     state.theme = localStorage.getItem("pmTheme") || "dark";
+    state.lastRenderedStep = null;
 
     const app = document.getElementById("app");
     const coachModal = document.getElementById("coachModal");
@@ -1510,8 +1511,11 @@ ${answers}`;
       if (state.step === "briefing") renderBriefing();
       if (state.step === "decision") renderDecision();
       if (state.step === "results") renderResults();
-      app.classList.remove("enter");
-      requestAnimationFrame(() => app.classList.add("enter"));
+      if (state.lastRenderedStep !== state.step) {
+        app.classList.remove("enter");
+        requestAnimationFrame(() => app.classList.add("enter"));
+      }
+      state.lastRenderedStep = state.step;
     }
 
     function topBar() {
