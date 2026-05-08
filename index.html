@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PM Case Game</title>
+  <meta name="description" content="Интерактивная тренинговая кейс-игра для PM: 5 сценариев, решения, фидбек и профиль менеджера." />
+  <meta property="og:title" content="PM Case Game" />
+  <meta property="og:description" content="5 сценариев, 20 минут, 15 очков. Пройди полный цикл запуска B2B-продукта." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://dummyimage.com/1200x630/0d0d0f/7c6df0&text=PM+Case+Game" />
+  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" rx="12" fill="%230d0d0f"/%3E%3Ctext x="50%25" y="56%25" text-anchor="middle" font-size="30" fill="%237c6df0" font-family="Arial"%3EPM%3C/text%3E%3C/svg%3E' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #141417;
+      --surface-2: #1a1a1f;
+      --text: #f1f3f7;
+      --muted: #9ba3b5;
+      --accent: #7c6df0;
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Manrope, system-ui, sans-serif;
+    }
+    .app { min-height: 100vh; display: flex; justify-content: center; padding: 20px; }
+    .card {
+      width: 100%;
+      max-width: 920px;
+      background: linear-gradient(180deg, var(--surface), var(--surface-2));
+      border: 1px solid #252530;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    }
+    h1, h2, h3 { font-family: Unbounded, sans-serif; line-height: 1.2; margin: 0 0 12px; }
+    p { color: var(--text); margin: 0 0 10px; }
+    .muted { color: var(--muted); }
+    .top {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .score {
+      background: rgba(124,109,240,.15);
+      color: #c9c3ff;
+      border: 1px solid rgba(124,109,240,.45);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+    .dots { display: flex; gap: 8px; align-items: center; }
+    .dot {
+      width: 12px; height: 12px; border-radius: 999px; border: 1px solid #404050; background: #22232b;
+    }
+    .dot.active { background: var(--accent); border-color: var(--accent); }
+    .badge {
+      display: inline-block;
+      background: rgba(124,109,240,.18);
+      color: #d8d4ff;
+      border: 1px solid rgba(124,109,240,.5);
+      font-size: 12px;
+      border-radius: 999px;
+      padding: 5px 10px;
+      margin-bottom: 14px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0 20px; }
+    .stat { background: #12131a; border: 1px solid #2a2b35; border-radius: 12px; padding: 12px; text-align: center; }
+    .stat b { font-family: Unbounded, sans-serif; display: block; margin-bottom: 4px; font-size: 16px; }
+    .roles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 14px 0 18px; }
+    .role-btn, .choice, .btn {
+      background: #1b1c25; color: var(--text); border: 1px solid #313342; border-radius: 12px;
+      padding: 12px; cursor: pointer; text-align: left; font: inherit;
+    }
+    .role-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(124,109,240,.25) inset; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; text-align: center;
+      min-height: 42px; min-width: 160px; background: var(--accent); border-color: transparent; font-weight: 700;
+    }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .choice-list { display: grid; gap: 10px; margin: 12px 0; }
+    .choice:hover { border-color: #4a4d63; }
+    .choice.locked { cursor: default; opacity: .8; }
+    .stakeholders { display: grid; gap: 8px; margin: 12px 0; }
+    .bubble {
+      background: #12131a; border: 1px solid #2c2e3d; border-radius: 10px; padding: 10px;
+    }
+    .bubble b { color: #d5d9e9; }
+    .feedback { margin-top: 14px; padding: 12px; border-radius: 12px; border: 1px solid transparent; }
+    .feedback.good { background: rgba(16,185,129,.10); border-color: rgba(16,185,129,.35); }
+    .feedback.ok { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.35); }
+    .feedback.bad { background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.35); }
+    .feedback.danger { background: rgba(220,38,38,.13); border-color: rgba(220,38,38,.38); }
+    .ring-wrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+    .ring {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: conic-gradient(var(--accent) calc(var(--p) * 1%), #2a2b35 0);
+      display: grid; place-items: center;
+    }
+    .ring > div {
+      width: 84px; height: 84px; border-radius: 50%; background: var(--surface);
+      display: grid; place-items: center; font-family: Unbounded, sans-serif; font-size: 20px;
+    }
+    .log { display: grid; gap: 10px; margin-top: 14px; }
+    .log-item { border: 1px solid #2c2f3e; background: #12131a; border-radius: 10px; padding: 10px; }
+    .growth { margin-top: 14px; padding: 12px; border: 1px solid #303245; border-radius: 12px; background: #101119; }
+    .growth h3 { margin-bottom: 8px; }
+    .growth-item { margin-bottom: 8px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid; margin-left: 8px; }
+    .pill.good { color: #9cf3cf; border-color: #2f946f; }
+    .pill.ok { color: #f8d395; border-color: #ac7d2b; }
+    .pill.bad, .pill.danger { color: #ffb1b1; border-color: #b43d3d; }
+    @media (max-width: 760px) {
+      .grid, .roles { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="card" id="app"></main>
+  </div>
+
+  <script>
+    const scenarios = [
+      {
+        title: "Приоритизация скоупа (Неделя 1)",
+        competency: "Приоритизация и alignment",
+        context: "Три стейкхолдера требуют разного: CEO хочет запуск через 3 месяца, CTO говорит о рисках качества, Sales требует интеграцию 1С для первых клиентов.",
+        stakeholders: [
+          { name: "CEO", text: "Выйти в рынок как можно раньше, даже с урезанным MVP." },
+          { name: "CTO", text: "3 месяца нереалистично без роста техдолга." },
+          { name: "Sales", text: "Без 1С текущие клиенты не подпишут контракт." }
+        ],
+        question: "Как вы договоритесь о скоупе прямо сейчас?",
+        choices: [
+          { key: "А", text: "Поддержать CEO: запуск через 3 месяца с минимальным MVP.", type: "bad", pts: 1, feedback: "Быстрый выход без валидации ценности и без учёта рисков качества повышает шанс провала." },
+          { key: "Б", text: "Провести MoSCoW-воркшоп со всеми стейкхолдерами и зафиксировать скоуп.", type: "good", pts: 3, feedback: "Выравнивание ожиданий на старте снижает конфликты и повышает предсказуемость." },
+          { key: "В", text: "Провести быстрый custdev (5-7 интервью) и вернуть data-driven скоуп.", type: "good", pts: 3, feedback: "Решение на основе данных снижает риск построить не то, хотя требует времени." },
+          { key: "Г", text: "Взять скоуп Sales, так как есть 3 платящих клиента.", type: "ok", pts: 2, feedback: "Живые деньги важны, но выборка мала для масштабируемого продуктового решения." }
+        ]
+      },
+      {
+        title: "Кризис команды (Неделя 6)",
+        competency: "Кризисная коммуникация",
+        context: "Ведущий разработчик уходит через 2 недели. Он держит ключевые знания по архитектуре. До дедлайна 10 недель.",
+        stakeholders: [
+          { name: "Команда", text: "Деморализована, не понимает, как закрыть критические фичи." },
+          { name: "PM", text: "Нужно действовать в первые 48 часов и управлять рисками открыто." }
+        ],
+        question: "Что вы сделаете в первые 48 часов?",
+        choices: [
+          { key: "А", text: "Срочно нанять дорогого подрядчика и закрыть пробел.", type: "bad", pts: 1, feedback: "Без передачи знаний подрядчик не даст быстрой пользы; потеряете деньги и время." },
+          { key: "Б", text: "Сделать сессию передачи знаний, пересмотреть скоуп и открыто сообщить риски.", type: "good", pts: 3, feedback: "Это зрелая кризисная реакция: знания, прозрачность и управляемые сценарии." },
+          { key: "В", text: "Не говорить стейкхолдерам, решить внутри, чтобы не сеять панику.", type: "danger", pts: 0, feedback: "Сокрытие рисков разрушает доверие и ухудшает последствия, когда проблема всплывает." },
+          { key: "Г", text: "Сразу попросить перенос дедлайна на 6 недель без альтернатив.", type: "ok", pts: 2, feedback: "Честно, но слабо: к руководству лучше приходить с вариантами, а не только с проблемой." }
+        ]
+      },
+      {
+        title: "Данные против интуиции (Неделя 10)",
+        competency: "Data-driven решения",
+        context: "После беты: отчёты используют 78% клиентов, pipeline — только 12%. CPO не хочет резать pipeline из-за уже вложенных 6 недель.",
+        stakeholders: [
+          { name: "CPO", text: "Pipeline — ключевая фича, просто надо обучить клиентов." },
+          { name: "Метрики", text: "NPS 4.2/10, платят за pipeline 3 из 20." }
+        ],
+        question: "Как вы поступите с pipeline за 6 недель до релиза?",
+        choices: [
+          { key: "А", text: "Оставить pipeline и добавить onboarding/уведомления.", type: "danger", pts: 0, feedback: "Это sunk cost fallacy: игнорирование слабого adoption вредит фокусу." },
+          { key: "Б", text: "Провести 5 интервью с неиспользующими pipeline и потом решить.", type: "good", pts: 3, feedback: "Правильная диагностика перед решением: UX-проблема или отсутствие ценности." },
+          { key: "В", text: "Убрать pipeline из MVP и усилить отчёты, вернуть pipeline в v2.", type: "good", pts: 3, feedback: "Смелый data-driven фокус на том, что реально создаёт ценность сейчас." },
+          { key: "Г", text: "Оставить pipeline, но сделать платным опциональным модулем.", type: "ok", pts: 2, feedback: "Интересно для монетизации, но pricing не исправляет слабый product-market fit." }
+        ]
+      },
+      {
+        title: "Критический баг перед запуском (Неделя 14)",
+        competency: "Управление риском запуска",
+        context: "За 2 недели до релиза QA нашёл баг в биллинге: в 1 из 20 транзакций неверная сумма. Фикс — 10 дней.",
+        stakeholders: [
+          { name: "Sales", text: "Переносить нельзя — конкурент запускается через 3 недели." },
+          { name: "QA", text: "Запуск с финансовым багом угрожает репутации и клиентам." }
+        ],
+        question: "Запускаться в срок или переносить?",
+        choices: [
+          { key: "А", text: "Запуск в срок, затем hotfix через неделю.", type: "danger", pts: 0, feedback: "Для финтеха финансовая корректность некомпромиссна; репутационные риски критичны." },
+          { key: "Б", text: "Перенести на 10 дней и честно сообщить клиентам причину.", type: "good", pts: 3, feedback: "Прозрачная задержка лучше, чем запуск с риском финансового инцидента." },
+          { key: "В", text: "Запустить с отключённым модулем счетов и включить после фикса.", type: "ok", pts: 2, feedback: "Компромисс рабочий, если коммуникация будет честной и без манипуляций." },
+          { key: "Г", text: "Сделать soft launch на 3 клиента с ручным мониторингом.", type: "good", pts: 3, feedback: "Контролируемый rollout снижает риски и сохраняет движение вперёд." }
+        ]
+      },
+      {
+        title: "Стратегия роста после запуска (Месяц 1)",
+        competency: "Стратегия роста и retention",
+        context: "Есть 40 платящих клиентов, но churn 15%. CEO требует удвоить клиентскую базу и добавить 3 фичи, команда перегружена.",
+        stakeholders: [
+          { name: "CEO", text: "Нужно 80 клиентов к концу квартала, используем momentum." },
+          { name: "Команда", text: "Высокий риск выгорания после интенсивного запуска." }
+        ],
+        question: "Как расставите приоритеты на следующий квартал?",
+        choices: [
+          { key: "А", text: "Давить на рост и параллельно делать 3 фичи.", type: "danger", pts: 0, feedback: "Рост на фоне высокого churn превращается в 'дырявое ведро' и усиливает выгорание." },
+          { key: "Б", text: "Снизить churn до 5%, затем масштабироваться.", type: "good", pts: 3, feedback: "Retention-first обычно даёт лучшую экономику и устойчивый рост." },
+          { key: "В", text: "Нанять 2 разработчиков и ускорить разработку фич.", type: "bad", pts: 1, feedback: "Без диагностики причин оттока найм только увеличит сложность без эффекта." },
+          { key: "Г", text: "Сделать churn-анализ и интервью ушедших, затем data-driven roadmap.", type: "good", pts: 3, feedback: "Решение опирается на причины оттока и бизнес-метрики, а не на интуицию." }
+        ]
+      }
+    ];
+
+    const state = {
+      role: null,
+      step: "welcome",
+      idx: 0,
+      score: 0,
+      answers: []
+    };
+
+    const app = document.getElementById("app");
+
+    const profileByScore = (score) => {
+      if (score >= 12) return { title: "Стратегический менеджер", note: "Вы балансируете интересы сторон и принимаете взвешенные data-driven решения." };
+      if (score >= 8) return { title: "Опытный тактик", note: "База сильная, но есть точки роста в кризисах и в аргументации через данные." };
+      return { title: "Начинающий менеджер", note: "Хороший старт. Разбор с тренером ускорит рост практических навыков." };
+    };
+
+    const typeLabel = (type) => ({
+      good: "Оптимальное",
+      ok: "Приемлемое",
+      bad: "Слабое",
+      danger: "Опасное"
+    }[type] || "Решение");
+
+    const growthHints = {
+      "Приоритизация и alignment": "Перед фиксацией scope используйте единый ритуал приоритизации (MoSCoW/Story Mapping) и фиксируйте договоренности письменно.",
+      "Кризисная коммуникация": "В кризис действуйте по принципу no surprises: ранняя эскалация риска + 2-3 жизнеспособных варианта решения.",
+      "Data-driven решения": "Перед спорными решениями валидируйте гипотезу быстрыми интервью и метриками adoption, чтобы избежать sunk cost fallacy.",
+      "Управление риском запуска": "Для high-severity багов применяйте quality gate и staged rollout вместо запуска 'как есть'.",
+      "Стратегия роста и retention": "Сначала снижайте churn, затем масштабируйте acquisition; оценивайте рост через cohort-динамику."
+    };
+
+    function exportResults() {
+      const payload = {
+        generatedAt: new Date().toISOString(),
+        role: state.role,
+        score: state.score,
+        maxScore: 15,
+        profile: profileByScore(state.score).title,
+        answers: state.answers.map((a, i) => ({
+          scenarioIndex: i + 1,
+          scenario: a.scenario,
+          competency: scenarios[i].competency,
+          choiceKey: a.choice.key,
+          choiceType: a.choice.type,
+          points: a.choice.pts,
+          choiceText: a.choice.text,
+          feedback: a.choice.feedback
+        }))
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `pm-case-game-results-${Date.now()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function shareResults() {
+      const profile = profileByScore(state.score);
+      const text = `PM Case Game: ${state.score}/15 (${profile.title}). Роль: ${state.role}.`;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "PM Case Game", text });
+          return;
+        } catch (_) {}
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        alert("Текст результата скопирован в буфер обмена.");
+        return;
+      }
+      alert(text);
+    }
+
+    function render() {
+      if (state.step === "welcome") return renderWelcome();
+      if (state.step === "briefing") return renderBriefing();
+      if (state.step === "decision") return renderDecision();
+      if (state.step === "results") return renderResults();
+    }
+
+    function topBar() {
+      const dots = scenarios.map((_, i) => `<span class="dot ${i === state.idx ? "active" : ""}"></span>`).join("");
+      return `
+        <div class="top">
+          <div class="dots">${dots}</div>
+          <div class="score">Счёт: ${state.score} / 15</div>
+        </div>
+      `;
+    }
+
+    function renderWelcome() {
+      app.innerHTML = `
+        <span class="badge">PM CASE GAME</span>
+        <h1>Запуск продукта: критические решения</h1>
+        <p class="muted">Интерактивная тренинговая кейс-игра по полному циклу запуска B2B-продукта.</p>
+        <div class="grid">
+          <div class="stat"><b>5</b><span class="muted">сценариев</span></div>
+          <div class="stat"><b>20</b><span class="muted">минут</span></div>
+          <div class="stat"><b>15</b><span class="muted">макс. очков</span></div>
+        </div>
+        <h3>Выберите роль</h3>
+        <div class="roles">
+          <button class="role-btn ${state.role === "PM" ? "active" : ""}" data-role="PM"><b>Product Manager (PM)</b><br><span class="muted">Фокус: что строим и почему.</span></button>
+          <button class="role-btn ${state.role === "PMO" ? "active" : ""}" data-role="PMO"><b>Project Manager (PMO)</b><br><span class="muted">Фокус: как и когда доставляем.</span></button>
+        </div>
+        <button class="btn" id="startBtn" ${state.role ? "" : "disabled"}>Начать</button>
+      `;
+      document.querySelectorAll("[data-role]").forEach((btn) => {
+        btn.addEventListener("click", () => { state.role = btn.dataset.role; render(); });
+      });
+      document.getElementById("startBtn").addEventListener("click", () => { state.step = "briefing"; render(); });
+    }
+
+    function renderBriefing() {
+      const sc = scenarios[state.idx];
+      app.innerHTML = `
+        ${topBar()}
+        <span class="badge">Этап ${state.idx + 1} из ${scenarios.length}</span>
+        <h2>${sc.title}</h2>
+        <p>${sc.context}</p>
+        <div class="stakeholders">
+          ${sc.stakeholders.map((s) => `<div class="bubble"><b>${s.name}:</b> ${s.text}</div>`).join("")}
+        </div>
+        <button class="btn" id="toDecision">К решению</button>
+      `;
+      document.getElementById("toDecision").addEventListener("click", () => { state.step = "decision"; render(); });
+    }
+
+    function renderDecision() {
+      const sc = scenarios[state.idx];
+      const alreadyChosen = state.answers[state.idx];
+      app.innerHTML = `
+        ${topBar()}
+        <span class="badge">Роль: ${state.role}</span>
+        <h2>${sc.title}</h2>
+        <p><b>Вопрос:</b> ${sc.question}</p>
+        <div class="choice-list">
+          ${sc.choices.map((c, i) => `
+            <button class="choice ${alreadyChosen ? "locked" : ""}" data-choice="${i}" ${alreadyChosen ? "disabled" : ""}>
+              <b>${c.key}.</b> ${c.text}
+            </button>
+          `).join("")}
+        </div>
+        <div id="feedbackBlock"></div>
+      `;
+
+      if (alreadyChosen) {
+        showFeedback(alreadyChosen.choice, true);
+      } else {
+        document.querySelectorAll("[data-choice]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const choice = sc.choices[Number(btn.dataset.choice)];
+            state.score += choice.pts;
+            state.answers[state.idx] = { scenario: sc.title, choice };
+            showFeedback(choice, false);
+            document.querySelectorAll(".choice").forEach((b) => b.disabled = true);
+          });
+        });
+      }
+    }
+
+    function showFeedback(choice, locked) {
+      const wrap = document.getElementById("feedbackBlock");
+      const last = state.idx === scenarios.length - 1;
+      wrap.innerHTML = `
+        <div class="feedback ${choice.type}">
+          <p><b>${typeLabel(choice.type)}</b> · +${choice.pts} очк.</p>
+          <p class="muted">${choice.feedback}</p>
+        </div>
+        <button class="btn" id="nextBtn" style="margin-top:10px;">${last ? "К результатам" : "Далее"}</button>
+      `;
+      document.getElementById("nextBtn").addEventListener("click", () => {
+        if (last) state.step = "results";
+        else { state.idx += 1; state.step = "briefing"; }
+        render();
+      });
+    }
+
+    function renderResults() {
+      const profile = profileByScore(state.score);
+      const percent = Math.round((state.score / 15) * 100);
+      const growthAreas = state.answers
+        .map((a, i) => ({ pts: a.choice.pts, competency: scenarios[i].competency }))
+        .filter((item) => item.pts <= 1);
+      const uniqueGrowthAreas = [...new Set(growthAreas.map((g) => g.competency))];
+      app.innerHTML = `
+        <span class="badge">Результаты</span>
+        <h2>${profile.title}</h2>
+        <div class="ring-wrap">
+          <div class="ring" style="--p:${percent};"><div>${state.score}</div></div>
+          <div>
+            <p><b>${state.score} / 15 очков</b></p>
+            <p class="muted">${profile.note}</p>
+          </div>
+        </div>
+        <div class="log">
+          ${state.answers.map((a, i) => `
+            <div class="log-item">
+              <b>${i + 1}. ${a.scenario}</b>
+              <span class="muted"> · ${scenarios[i].competency}</span>
+              <span class="pill ${a.choice.type}">${typeLabel(a.choice.type)} · ${a.choice.pts} очк.</span>
+              <p class="muted" style="margin-top:8px;"><b>Выбор:</b> ${a.choice.key}. ${a.choice.text}</p>
+              <p class="muted">${a.choice.feedback}</p>
+            </div>
+          `).join("")}
+        </div>
+        <div class="growth">
+          <h3>Зоны роста</h3>
+          ${uniqueGrowthAreas.length ? uniqueGrowthAreas.map((area) => `
+            <p class="growth-item"><b>${area}:</b> <span class="muted">${growthHints[area]}</span></p>
+          `).join("") : `<p class="muted">Критичных зон роста не выявлено. Можно усложнять кейсы и добавлять командный режим.</p>`}
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+          <button class="btn" id="retryBtn">Ещё раз</button>
+          <button class="btn" id="coachBtn" style="background:#25263a;border:1px solid #3f4159;">Разобрать с тренером</button>
+          <button class="btn" id="exportBtn" style="background:#1f2030;border:1px solid #3d3f58;">Экспорт JSON</button>
+          <button class="btn" id="shareBtn" style="background:#1f2030;border:1px solid #3d3f58;">Поделиться результатом</button>
+        </div>
+      `;
+      document.getElementById("retryBtn").addEventListener("click", () => {
+        state.step = "welcome"; state.idx = 0; state.score = 0; state.answers = []; state.role = null; render();
+      });
+      document.getElementById("coachBtn").addEventListener("click", () => {
+        alert("Рекомендуемый формат: групповой дебрифинг на 60-90 минут с разбором причин выбора по каждому сценарию.");
+      });
+      document.getElementById("exportBtn").addEventListener("click", exportResults);
+      document.getElementById("shareBtn").addEventListener("click", () => {
+        shareResults().catch(() => alert("Не удалось поделиться автоматически. Попробуйте еще раз."));
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
