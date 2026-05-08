@@ -70,10 +70,11 @@ function calculateResults(questions: Question[], answers: Record<string, number>
   });
 
   const sorted = [...normalized].sort((a, b) => b.percent - a.percent);
+  const superpowers = sorted.filter((item) => item.percent > 80).slice(0, 2);
 
   return {
     normalized,
-    top2: sorted.slice(0, 2),
+    top2: superpowers,
     bottom2: [...sorted].reverse().slice(0, 2),
   };
 }
@@ -137,11 +138,15 @@ export default function Assessment() {
               <div className="space-y-4">
                 <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
                   <h3 className="text-lg font-semibold text-emerald-200">Ваши суперсилы</h3>
-                  {results.top2.map((item) => (
-                    <p key={item.category} className="mt-2 text-sm text-slate-300">
-                      <span className="font-medium text-white">{displayCategory(item.category)}</span>: {item.percent}%
-                    </p>
-                  ))}
+                  {results.top2.length > 0 ? (
+                    results.top2.map((item) => (
+                      <p key={item.category} className="mt-2 text-sm text-slate-300">
+                        <span className="font-medium text-white">{displayCategory(item.category)}</span>: {item.percent}%
+                      </p>
+                    ))
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-400">Пока нет категорий в зеленой зоне. Продолжайте прокачку навыков.</p>
+                  )}
                 </div>
                 <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
                   <h3 className="text-lg font-semibold text-rose-200">Зоны роста</h3>
