@@ -591,6 +591,7 @@
 
     const state = {
       role: null,
+      level: null,
       step: "welcome",
       roundIdx: 0,
       idx: 0,
@@ -704,6 +705,164 @@
       }
     };
 
+    const levelConfigs = {
+      junior: {
+        label: "Junior",
+        description: "Базовые кейсы, фокус на фундаментальные решения и понятную структуру действий.",
+        roundsToInclude: 2,
+        complexityTag: "Базовый уровень",
+        focusByRole: {
+          PM: ["Основы приоритизации", "Базовая коммуникация", "Product discovery fundamentals"],
+          PMO: ["Базовый planning", "Risk awareness", "Execution discipline"]
+        },
+        categoryByCompetency: {
+          "Приоритизация и alignment": "Основы приоритизации",
+          "Кризисная коммуникация": "Базовая коммуникация в рисках",
+          "Data-driven решения": "Базовая аналитика решений",
+          "Управление риском запуска": "Контроль качества релиза",
+          "Стратегия роста и retention": "Основы удержания и роста"
+        },
+        contextAddon: "Условие: вы работаете под менторством и обязаны предложить простое, исполнимое решение.",
+        questionPrefix: "Базовый уровень: "
+      },
+      middle: {
+        label: "Middle",
+        description: "Рабочие кейсы с кросс-функциональными зависимостями и ответственностью за outcome.",
+        roundsToInclude: 3,
+        complexityTag: "Рабочий уровень",
+        focusByRole: {
+          PM: ["Delivery + Outcome баланс", "Data-informed приоритеты", "Stakeholder management"],
+          PMO: ["Кросс-функциональный execution", "Risk-response planning", "Управление зависимостями"]
+        },
+        categoryByCompetency: {
+          "Приоритизация и alignment": "Управление компромиссами",
+          "Кризисная коммуникация": "Коммуникация под давлением",
+          "Data-driven решения": "Аналитика продуктовых решений",
+          "Управление риском запуска": "Go-live readiness",
+          "Стратегия роста и retention": "Operational growth planning"
+        },
+        contextAddon: "Условие: решение должно учитывать зависимости между командами и impact на KPI.",
+        questionPrefix: "Middle уровень: "
+      },
+      senior: {
+        label: "Senior",
+        description: "Сложные управленческие дилеммы с ограничениями, конфликтами интересов и ценой ошибки.",
+        roundsToInclude: 3,
+        complexityTag: "Продвинутый уровень",
+        focusByRole: {
+          PM: ["Стратегические trade-offs", "Системная продуктовая диагностика", "Influence без формальной власти"],
+          PMO: ["Системное управление рисками", "Steering governance", "Принятие решений в условиях неопределенности"]
+        },
+        categoryByCompetency: {
+          "Приоритизация и alignment": "Стратегические trade-offs",
+          "Кризисная коммуникация": "Executive crisis communication",
+          "Data-driven решения": "Decision quality under uncertainty",
+          "Управление риском запуска": "High-severity release governance",
+          "Стратегия роста и retention": "Portfolio-level growth decisions"
+        },
+        contextAddon: "Ограничение: есть высокий политический риск и ограниченное окно принятия решения.",
+        questionPrefix: "Senior уровень: "
+      },
+      lead: {
+        label: "Lead",
+        description: "Лидерский трек: решения на уровне портфеля, командной системы и бизнес-ответственности.",
+        roundsToInclude: 4,
+        complexityTag: "Лидерский уровень",
+        focusByRole: {
+          PM: ["Portfolio strategy", "Орг-дизайн решений", "Leadership communication"],
+          PMO: ["Program governance", "Оркестрация команд", "Executive decision framing"]
+        },
+        categoryByCompetency: {
+          "Приоритизация и alignment": "Portfolio alignment",
+          "Кризисная коммуникация": "Leadership communication",
+          "Data-driven решения": "Data governance и decision quality",
+          "Управление риском запуска": "Enterprise release governance",
+          "Стратегия роста и retention": "Company-level growth orchestration"
+        },
+        contextAddon: "Ограничение: требуется учесть долгосрочный эффект на систему команд, P&L и доверие руководства.",
+        questionPrefix: "Lead уровень: "
+      }
+    };
+
+    const leadExtraRounds = {
+      PM: {
+        title: "Раунд 4: Leadership Portfolio Drill",
+        focus: ["Portfolio strategy", "Leadership communication"],
+        scenarios: [
+          {
+            title: "Lead Drill: конфликт двух продуктовых направлений",
+            competency: "Приоритизация и alignment",
+            context: "Два стрима конкурируют за один engineering capacity. Оба критичны для квартальных целей.",
+            stakeholders: [
+              { name: "CPO", text: "Нужен прозрачный принцип выбора на уровне портфеля." },
+              { name: "Finance", text: "Ожидает обоснование через impact на выручку и риск." }
+            ],
+            question: "Как вы как Product Lead примете portfolio-решение?",
+            choices: [
+              { key: "А", text: "Поддержать направление с самым сильным внутренним лобби.", type: "danger", pts: 0, feedback: "Политическое решение подрывает доверие к продуктовой системе." },
+              { key: "Б", text: "Принять решение по единой scoring-модели impact/risk/effort и зафиксировать критерии.", type: "good", pts: 3, feedback: "Прозрачная модель снижает конфликтность и повышает качество управления портфелем." },
+              { key: "В", text: "Разделить ресурсы поровну между направлениями.", type: "ok", pts: 2, feedback: "Компромисс снижает конфликт, но может размыть фокус и outcome." },
+              { key: "Г", text: "Отложить решение до следующего квартала.", type: "bad", pts: 1, feedback: "Задержка повышает cost of delay и неопределенность для команд." }
+            ]
+          },
+          {
+            title: "Lead Drill: антикризисная коммуникация на уровне компании",
+            competency: "Кризисная коммуникация",
+            context: "После инцидента ключевой клиент угрожает расторжением. Нужен единый месседж для exec-level и команды.",
+            stakeholders: [
+              { name: "CEO", text: "Требует быстрый план стабилизации и возврата доверия." },
+              { name: "Customer Success", text: "Нужны конкретные обязательства клиенту." }
+            ],
+            question: "Какой формат коммуникации Product Lead выберет?",
+            choices: [
+              { key: "А", text: "Свести всё к общим формулировкам без конкретных сроков и owners.", type: "danger", pts: 0, feedback: "Без конкретики сложно восстановить доверие и управлять исполнением." },
+              { key: "Б", text: "Дать честный incident-brief: impact, RCA-гипотеза, corrective actions, owners и контрольные даты.", type: "good", pts: 3, feedback: "Это зрелая лидерская коммуникация, которая связывает доверие и execution." },
+              { key: "В", text: "Передать коммуникацию полностью PR-команде.", type: "bad", pts: 1, feedback: "Без продуктового контекста PR не закроет ключевые вопросы о корректирующих действиях." },
+              { key: "Г", text: "Сначала закрыть инцидент, а потом объяснить причины.", type: "ok", pts: 2, feedback: "Практично, но в моменте может быть воспринято как непрозрачность." }
+            ]
+          }
+        ]
+      },
+      PMO: {
+        title: "Раунд 4: Program Leadership Drill",
+        focus: ["Program governance", "Executive decision framing"],
+        scenarios: [
+          {
+            title: "Lead Drill: multi-team dependency crisis",
+            competency: "Управление риском запуска",
+            context: "Три команды блокируют друг друга по интеграциям, окно запуска сокращается.",
+            stakeholders: [
+              { name: "CTO", text: "Нужна единая программа действий и приоритизация блокеров." },
+              { name: "Business", text: "Ожидает сохранения целевой даты или прозрачного replanning." }
+            ],
+            question: "Как PMO Lead стабилизирует программу?",
+            choices: [
+              { key: "А", text: "Оставить команды решать зависимости самостоятельно.", type: "danger", pts: 0, feedback: "Без оркестрации межкомандный конфликт только усилится." },
+              { key: "Б", text: "Собрать dependency war-room, зафиксировать critical path и ежедневные decision gates.", type: "good", pts: 3, feedback: "Лидерский формат ускоряет развязку блокеров и повышает управляемость." },
+              { key: "В", text: "Сместить дату запуска сразу на квартал без альтернатив.", type: "bad", pts: 1, feedback: "Слишком грубое решение без проработки сценариев." },
+              { key: "Г", text: "Добавить больше статусов, не меняя модель принятия решений.", type: "ok", pts: 2, feedback: "Прозрачности больше, но без governance эффект ограничен." }
+            ]
+          },
+          {
+            title: "Lead Drill: расхождение project KPI и business KPI",
+            competency: "Data-driven решения",
+            context: "Delivery метрики в зелёной зоне, но бизнес-результат ниже плана второй месяц подряд.",
+            stakeholders: [
+              { name: "COO", text: "Нужен пересмотр управленческой модели на уровне программы." },
+              { name: "Product", text: "Требует пересобрать систему целей и контроля." }
+            ],
+            question: "Как PMO Lead переопределит контур управления?",
+            choices: [
+              { key: "А", text: "Сохранить текущую модель: проект идет по плану.", type: "danger", pts: 0, feedback: "Иллюзия успеха по delivery без outcome — стратегический риск." },
+              { key: "Б", text: "Ввести единый scoreboard project+product+business KPI для steering-комитета.", type: "good", pts: 3, feedback: "Такое выравнивание улучшает качество решений на exec-уровне." },
+              { key: "В", text: "Сконцентрироваться только на бизнес-метриках, убрав delivery-контроль.", type: "bad", pts: 1, feedback: "Потеря операционной управляемости увеличит риск исполнения." },
+              { key: "Г", text: "Подождать ещё один отчётный период без изменений.", type: "ok", pts: 2, feedback: "Иногда допустимо, но увеличивает лаг реакции системы." }
+            ]
+          }
+        ]
+      }
+    };
+
     function buildSkillGrowthPlan(uniqueGrowthAreas) {
       const role = state.role || "PM";
       const roleMap = skillRecommendations[role] || skillRecommendations.PM;
@@ -738,17 +897,64 @@
       };
     }
 
-    function buildRoundsForRole(role) {
-      const coreRound = {
-        title: "Раунд 1: Core Case Game",
-        focus: ["Приоритизация и alignment", "Кризисная коммуникация", "Data-driven решения", "Управление риском запуска", "Стратегия роста и retention"],
-        scenarios: scenarios.map((_, i) => getScenarioForRole(role, i))
+    function applyLevelToScenario(baseScenario, role, level, roundTitle) {
+      const cfg = levelConfigs[level] || levelConfigs.middle;
+      const levelCategory = cfg.categoryByCompetency[baseScenario.competency] || baseScenario.competency;
+      const tunedChoices = baseScenario.choices.map((choice) => {
+        if (level === "junior") {
+          return {
+            ...choice,
+            text: `${choice.text} (Выберите самый базовый и безопасный шаг.)`
+          };
+        }
+        if (level === "senior" || level === "lead") {
+          return {
+            ...choice,
+            text: `${choice.text} (Оцените долгосрочный эффект и системные риски.)`
+          };
+        }
+        return choice;
+      });
+      return {
+        ...baseScenario,
+        competencyKey: baseScenario.competency,
+        category: levelCategory,
+        context: `${baseScenario.context} ${cfg.contextAddon}`,
+        question: `${cfg.questionPrefix}${baseScenario.question}`,
+        competency: `${baseScenario.competency} (${cfg.complexityTag})`,
+        choices: tunedChoices,
+        roundTitle
       };
-      return [coreRound, ...(drillRounds[role] || [])];
+    }
+
+    function buildRoundsForRole(role, level) {
+      const cfg = levelConfigs[level] || levelConfigs.middle;
+      const coreRound = {
+        title: `Раунд 1: Core Case Game (${cfg.label})`,
+        focus: cfg.focusByRole[role] || cfg.focusByRole.PM,
+        scenarios: scenarios.map((_, i) => applyLevelToScenario(getScenarioForRole(role, i), role, level, "Раунд 1"))
+      };
+      const baseDrills = (drillRounds[role] || []).slice(0, cfg.roundsToInclude - 1).map((round, rIdx) => ({
+        ...round,
+        title: `${round.title} (${cfg.label})`,
+        focus: (round.focus || []).concat(cfg.focusByRole[role]?.slice(0, 1) || []),
+        scenarios: round.scenarios.map((s) => applyLevelToScenario(s, role, level, `Раунд ${rIdx + 2}`))
+      }));
+      const rounds = [coreRound, ...baseDrills];
+      if (level === "lead") {
+        const leadRound = leadExtraRounds[role];
+        if (leadRound) {
+          rounds.push({
+            ...leadRound,
+            scenarios: leadRound.scenarios.map((s) => applyLevelToScenario(s, role, level, "Раунд 4"))
+          });
+        }
+      }
+      return rounds;
     }
 
     function initTrainingFlow() {
-      state.roundsData = buildRoundsForRole(state.role);
+      state.roundsData = buildRoundsForRole(state.role, state.level);
       state.roundAnswers = state.roundsData.map(() => []);
       state.roundScores = state.roundsData.map(() => 0);
       state.roundIdx = 0;
@@ -774,6 +980,7 @@
       const payload = {
         generatedAt: new Date().toISOString(),
         role: state.role,
+        level: state.level,
         rounds: state.roundsData.map((round, i) => ({
           title: round.title,
           focus: round.focus,
@@ -787,7 +994,8 @@
           scenarioIndex: i + 1,
           round: a.roundTitle,
           scenario: a.scenario,
-          competency: a.competency,
+          competency: a.competencyKey,
+          competencyLabel: a.competencyLabel,
           choiceKey: a.choice.key,
           choiceType: a.choice.type,
           points: a.choice.pts,
@@ -810,7 +1018,7 @@
     async function shareResults() {
       const maxScore = getMaxScore();
       const profile = profileByScore(state.score, maxScore);
-      const text = `PM Case Game: ${state.score}/${maxScore} (${profile.title}). Роль: ${state.role}.`;
+      const text = `PM Case Game: ${state.score}/${maxScore} (${profile.title}). Роль: ${state.role}, уровень: ${state.level}.`;
       if (navigator.share) {
         try {
           await navigator.share({ title: "PM Case Game", text });
@@ -830,7 +1038,7 @@
       const profile = profileByScore(state.score, maxScore).title;
       const allAnswers = getAllAnswers();
       const answers = allAnswers.map((a, i) => (
-        `${i + 1}) ${a.roundTitle} / ${a.scenario}\nКомпетенция: ${a.competency}\nВыбор: ${a.choice.key}. ${a.choice.text}\nТип: ${typeLabel(a.choice.type)}\nОчки: ${a.choice.pts}\nФидбек: ${a.choice.feedback}`
+        `${i + 1}) ${a.roundTitle} / ${a.scenario}\nКомпетенция: ${a.competencyLabel}\nВыбор: ${a.choice.key}. ${a.choice.text}\nТип: ${typeLabel(a.choice.type)}\nОчки: ${a.choice.pts}\nФидбек: ${a.choice.feedback}`
       )).join("\n\n");
       return `Ты опытный product coach. Дай практичный, честный и структурированный разбор.
 Формат ответа:
@@ -841,6 +1049,7 @@
 
 Профиль участника: ${profile}
 Роль: ${state.role}
+Уровень: ${state.level}
 Счёт: ${state.score}/${maxScore}
 
 Результаты по сценариям:
@@ -1024,24 +1233,39 @@ ${answers}`;
     }
 
     function renderWelcome() {
+      const selectedLevelCfg = state.level ? levelConfigs[state.level] : null;
+      const previewRounds = state.role && state.level ? buildRoundsForRole(state.role, state.level) : [];
+      const previewScenarioCount = previewRounds.reduce((acc, r) => acc + r.scenarios.length, 0) || 9;
+      const previewMaxScore = previewRounds.reduce((acc, r) => acc + r.scenarios.length * 3, 0) || 27;
       app.innerHTML = `
         <span class="badge">PM CASE GAME</span>
         <h1>Запуск продукта: критические решения</h1>
         <p class="muted">Интерактивная тренинговая кейс-игра по полному циклу запуска B2B-продукта.</p>
         <div class="grid">
-          <div class="stat"><b>3</b><span class="muted">раунда тренировки</span></div>
-          <div class="stat"><b>9</b><span class="muted">сценариев</span></div>
-          <div class="stat"><b>27</b><span class="muted">макс. очков</span></div>
+          <div class="stat"><b>${previewRounds.length || 3}</b><span class="muted">раунда тренировки</span></div>
+          <div class="stat"><b>${previewScenarioCount}</b><span class="muted">сценариев</span></div>
+          <div class="stat"><b>${previewMaxScore}</b><span class="muted">макс. очков</span></div>
         </div>
         <h3>Выберите роль</h3>
         <div class="roles">
           <button class="role-btn ${state.role === "PM" ? "active" : ""}" data-role="PM"><b>Product Manager (PM)</b><br><span class="muted">Фокус: что строим и почему.</span></button>
           <button class="role-btn ${state.role === "PMO" ? "active" : ""}" data-role="PMO"><b>Project Manager (PMO)</b><br><span class="muted">Фокус: как и когда доставляем.</span></button>
         </div>
-        <button class="btn" id="startBtn" ${state.role ? "" : "disabled"}>Начать</button>
+        <h3>Выберите уровень сложности</h3>
+        <div class="roles">
+          <button class="role-btn ${state.level === "junior" ? "active" : ""}" data-level="junior"><b>Junior</b><br><span class="muted">${levelConfigs.junior.description}</span></button>
+          <button class="role-btn ${state.level === "middle" ? "active" : ""}" data-level="middle"><b>Middle</b><br><span class="muted">${levelConfigs.middle.description}</span></button>
+          <button class="role-btn ${state.level === "senior" ? "active" : ""}" data-level="senior"><b>Senior</b><br><span class="muted">${levelConfigs.senior.description}</span></button>
+          <button class="role-btn ${state.level === "lead" ? "active" : ""}" data-level="lead"><b>Lead</b><br><span class="muted">${levelConfigs.lead.description}</span></button>
+        </div>
+        ${selectedLevelCfg ? `<p class="muted"><b>Выбранный трек:</b> ${selectedLevelCfg.label} · ${selectedLevelCfg.complexityTag}</p>` : ""}
+        <button class="btn" id="startBtn" ${(state.role && state.level) ? "" : "disabled"}>Начать</button>
       `;
       document.querySelectorAll("[data-role]").forEach((btn) => {
         btn.addEventListener("click", () => { state.role = btn.dataset.role; render(); });
+      });
+      document.querySelectorAll("[data-level]").forEach((btn) => {
+        btn.addEventListener("click", () => { state.level = btn.dataset.level; render(); });
       });
       document.getElementById("startBtn").addEventListener("click", () => {
         initTrainingFlow();
@@ -1073,8 +1297,9 @@ ${answers}`;
       const alreadyChosen = state.roundAnswers[state.roundIdx][state.idx];
       app.innerHTML = `
         ${topBar()}
-        <span class="badge">Роль: ${state.role}</span>
+        <span class="badge">Роль: ${state.role} · Уровень: ${state.level}</span>
         <h2>${sc.title}</h2>
+        <p class="muted"><b>Категория:</b> ${sc.category || sc.competency}</p>
         <p><b>Вопрос:</b> ${sc.question}</p>
         <div class="choice-list">
           ${sc.choices.map((c, i) => `
@@ -1097,7 +1322,8 @@ ${answers}`;
             state.roundAnswers[state.roundIdx][state.idx] = {
               roundTitle: round.title,
               scenario: sc.title,
-              competency: sc.competency,
+              competencyKey: sc.competencyKey || sc.competency,
+              competencyLabel: sc.competency,
               choice
             };
             showFeedback(choice, false);
@@ -1138,11 +1364,12 @@ ${answers}`;
       const weakSkills = state.roundAnswers[state.roundIdx]
         .filter(Boolean)
         .filter((a) => a.choice.pts <= 1)
-        .map((a) => a.competency);
+        .map((a) => a.competencyKey);
       const uniqueWeakSkills = [...new Set(weakSkills)];
       app.innerHTML = `
         <span class="badge">Промежуточные результаты</span>
         <h2>${round.title}</h2>
+        <p class="muted"><b>Трек:</b> ${state.role} · ${state.level}</p>
         <div class="ring-wrap">
           <div class="ring" style="--p:${percent};"><div>${roundScore}</div></div>
           <div>
@@ -1172,13 +1399,14 @@ ${answers}`;
       const profile = profileByScore(state.score, maxScore);
       const percent = Math.round((state.score / maxScore) * 100);
       const growthAreas = allAnswers
-        .map((a) => ({ pts: a.choice.pts, competency: a.competency }))
+        .map((a) => ({ pts: a.choice.pts, competency: a.competencyKey }))
         .filter((item) => item.pts <= 1);
       const uniqueGrowthAreas = [...new Set(growthAreas.map((g) => g.competency))];
       const skillPlan = buildSkillGrowthPlan(uniqueGrowthAreas);
       app.innerHTML = `
         <span class="badge">Результаты</span>
         <h2>${profile.title}</h2>
+        <p class="muted"><b>Трек:</b> ${state.role} · ${state.level}</p>
         <div class="ring-wrap">
           <div class="ring" style="--p:${percent};"><div>${state.score}</div></div>
           <div>
@@ -1199,7 +1427,7 @@ ${answers}`;
           ${allAnswers.map((a, i) => `
             <div class="log-item">
               <b>${i + 1}. ${a.roundTitle} / ${a.scenario}</b>
-              <span class="muted"> · ${a.competency}</span>
+              <span class="muted"> · ${a.competencyLabel}</span>
               <span class="pill ${a.choice.type}">${typeLabel(a.choice.type)} · ${a.choice.pts} очк.</span>
               <p class="muted" style="margin-top:8px;"><b>Выбор:</b> ${a.choice.key}. ${a.choice.text}</p>
               <p class="muted">${a.choice.feedback}</p>
@@ -1231,6 +1459,7 @@ ${answers}`;
       document.getElementById("retryBtn").addEventListener("click", () => {
         state.step = "welcome";
         state.role = null;
+        state.level = null;
         state.roundIdx = 0;
         state.idx = 0;
         state.score = 0;
