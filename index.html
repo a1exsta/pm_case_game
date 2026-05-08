@@ -942,6 +942,29 @@
       }
     };
 
+    const juniorSimplifiedByCompetency = {
+      "Приоритизация и alignment": {
+        context: "Команда ждёт, что делать дальше. Нужно выбрать простой и понятный план, чтобы все работали в одном направлении.",
+        question: "Что лучше сделать в первую очередь?"
+      },
+      "Кризисная коммуникация": {
+        context: "Появилась проблема в проекте. Важно быстро и честно сообщить о риске и предложить понятные шаги.",
+        question: "Как правильно действовать при такой проблеме?"
+      },
+      "Data-driven решения": {
+        context: "Есть цифры по продукту, и они показывают, что не всё работает хорошо. Нужно принять решение на основе фактов.",
+        question: "Какое действие будет самым правильным по данным?"
+      },
+      "Управление риском запуска": {
+        context: "Перед запуском нашли серьёзную ошибку. Нужно выбрать безопасный вариант для клиентов.",
+        question: "Какой вариант запуска самый безопасный?"
+      },
+      "Стратегия роста и retention": {
+        context: "Клиенты приходят, но часть быстро уходит. Нужно выбрать понятный следующий шаг для роста.",
+        question: "Что сделать сначала, чтобы рост был устойчивым?"
+      }
+    };
+
     function buildSkillGrowthPlan(uniqueGrowthAreas) {
       const role = state.role || "PM";
       const roleMap = skillRecommendations[role] || skillRecommendations.PM;
@@ -981,9 +1004,14 @@
       const levelCategory = cfg.categoryByCompetency[baseScenario.competency] || baseScenario.competency;
       const tunedChoices = baseScenario.choices.map((choice) => {
         if (level === "junior") {
+          let simpleText = "Сделать понятный шаг и проверить результат.";
+          if (choice.type === "good") simpleText = "Обсудить с командой, проверить факты и выбрать самый безопасный рабочий план.";
+          if (choice.type === "ok") simpleText = "Выбрать компромиссный вариант и потом отдельно проверить риски.";
+          if (choice.type === "bad") simpleText = "Быстро принять решение без полной проверки деталей.";
+          if (choice.type === "danger") simpleText = "Игнорировать риск или скрыть проблему, чтобы не волновать других.";
           return {
             ...choice,
-            text: `${choice.text} (Выберите самый базовый и безопасный шаг.)`
+            text: simpleText
           };
         }
         if (level === "senior" || level === "lead") {
@@ -994,12 +1022,13 @@
         }
         return choice;
       });
+      const juniorPreset = level === "junior" ? juniorSimplifiedByCompetency[baseScenario.competency] : null;
       return {
         ...baseScenario,
         competencyKey: baseScenario.competency,
         category: levelCategory,
-        context: `${baseScenario.context} ${cfg.contextAddon}`,
-        question: `${cfg.questionPrefix}${baseScenario.question}`,
+        context: juniorPreset ? juniorPreset.context : `${baseScenario.context} ${cfg.contextAddon}`,
+        question: juniorPreset ? juniorPreset.question : `${cfg.questionPrefix}${baseScenario.question}`,
         competency: `${baseScenario.competency} (${cfg.complexityTag})`,
         choices: tunedChoices,
         roundTitle
