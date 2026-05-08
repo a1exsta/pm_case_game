@@ -32,6 +32,8 @@ interface AssessmentState {
   currentQuestionIndex: number;
   hasStarted: boolean;
   answers: AnswerMap;
+  activeQuestionIds: string[];
+  seenQuestionIdsByTrack: Record<string, string[]>;
   totalXp: number;
   streakDays: number;
   lastCompletedDate: string | null;
@@ -40,10 +42,12 @@ interface AssessmentState {
   setDisplayName: (name: string) => void;
   setRole: (role: Role) => void;
   setLevel: (level: Level) => void;
-  startAssessment: () => void;
+  startAssessment: (questionIds: string[]) => void;
   selectAnswer: (questionId: string, optionIndex: number) => void;
   awardXp: (amount: number) => void;
   registerCompletion: (scores: CategoryScoreMap, achievementIds: string[]) => void;
+  markQuestionsSeen: (trackKey: string, questionIds: string[]) => void;
+  clearTrackHistory: (trackKey: string) => void;
   nextQuestion: () => void;
   prevQuestion: () => void;
   resetAssessment: () => void;
@@ -59,6 +63,8 @@ export const useAssessmentStore = create<AssessmentState>()(
       currentQuestionIndex: 0,
       hasStarted: false,
       answers: {},
+      activeQuestionIds: [],
+      seenQuestionIdsByTrack: {},
       totalXp: 0,
       streakDays: 0,
       lastCompletedDate: null,
@@ -67,7 +73,7 @@ export const useAssessmentStore = create<AssessmentState>()(
       setDisplayName: (name) => set({ displayName: name }),
       setRole: (role) => set({ selectedRole: role }),
       setLevel: (level) => set({ selectedLevel: level }),
-      startAssessment: () => set({ currentQuestionIndex: 0, hasStarted: true, answers: {} }),
+      startAssessment: (questionIds) => set({ currentQuestionIndex: 0, hasStarted: true, answers: {}, activeQuestionIds: questionIds }),
       selectAnswer: (questionId, optionIndex) =>
         set((state) => ({
           answers: {
@@ -88,6 +94,23 @@ export const useAssessmentStore = create<AssessmentState>()(
             unlockedAchievementIds: Array.from(new Set([...state.unlockedAchievementIds, ...achievementIds])),
           };
         }),
+      markQuestionsSeen: (trackKey, questionIds) =>
+        set((state) => {
+          const current = state.seenQuestionIdsByTrack[trackKey] ?? [];
+          return {
+            seenQuestionIdsByTrack: {
+              ...state.seenQuestionIdsByTrack,
+              [trackKey]: Array.from(new Set([...current, ...questionIds])),
+            },
+          };
+        }),
+      clearTrackHistory: (trackKey) =>
+        set((state) => ({
+          seenQuestionIdsByTrack: {
+            ...state.seenQuestionIdsByTrack,
+            [trackKey]: [],
+          },
+        })),
       nextQuestion: () => set((state) => ({ currentQuestionIndex: state.currentQuestionIndex + 1 })),
       prevQuestion: () => set((state) => ({ currentQuestionIndex: Math.max(0, state.currentQuestionIndex - 1) })),
       resetAssessment: () =>
@@ -97,6 +120,7 @@ export const useAssessmentStore = create<AssessmentState>()(
           currentQuestionIndex: 0,
           hasStarted: false,
           answers: {},
+          activeQuestionIds: [],
         }),
     }),
     {

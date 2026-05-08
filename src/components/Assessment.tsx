@@ -49,6 +49,7 @@ const ACHIEVEMENTS: Achievement[] = [
   { id: "strategy-pro", title: "Стратег", description: "Продуктовая стратегия 80%+." },
   { id: "streak-3", title: "Серия 3", description: "Серия из 3 дней подряд." },
 ];
+const QUESTIONS_PER_ATTEMPT = 8;
 
 function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
@@ -94,6 +95,16 @@ function createSeededRandom(seed: number) {
     state = (state * 1664525 + 1013904223) % 4294967296;
     return state / 4294967296;
   };
+}
+
+function sampleQuestionIds(questionIds: string[], seedKey: string, limit: number) {
+  const random = createSeededRandom(hashString(seedKey));
+  const pool = [...questionIds];
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, Math.min(limit, pool.length));
 }
 
 function getShuffledOptionIndexes(questionId: string, optionsCount: number) {
@@ -224,6 +235,8 @@ export default function Assessment() {
     currentQuestionIndex,
     hasStarted,
     answers,
+    activeQuestionIds,
+    seenQuestionIdsByTrack,
     totalXp,
     streakDays,
     unlockedAchievementIds,
@@ -235,18 +248,26 @@ export default function Assessment() {
     selectAnswer,
     awardXp,
     registerCompletion,
+    markQuestionsSeen,
+    clearTrackHistory,
     nextQuestion,
     prevQuestion,
     resetAssessment,
   } = useAssessmentStore();
 
   const canStart = Boolean(selectedRole && selectedLevel);
-  const filteredQuestions = assessmentData.questions.filter((item) => item.role === selectedRole && item.level === selectedLevel);
-  const currentQuestion = filteredQuestions[currentQuestionIndex];
-  const isCompleted = hasStarted && filteredQuestions.length > 0 && Object.keys(answers).length >= filteredQuestions.length;
+  const allTrackQuestions = assessmentData.questions.filter((item) => item.role === selectedRole && item.level === selectedLevel);
+  const questionById = useMemo(() => new Map<string, Question>(allTrackQuestions.map((item) => [item.id, item])), [allTrackQuestions]);
+  const attemptQuestions = useMemo(
+    () => activeQuestionIds.map((id) => questionById.get(id)).filter((item): item is Question => Boolean(item)),
+    [activeQuestionIds, questionById],
+  );
+  const currentQuestion = attemptQuestions[currentQuestionIndex];
+  const isCompleted = hasStarted && attemptQuestions.length > 0 && Object.keys(answers).length >= attemptQuestions.length;
   const selectedTrackLabel = selectedRole && selectedLevel ? `${roleLabels[selectedRole]} · ${levelLabels[selectedLevel]}` : "";
+  const selectedTrackKey = selectedRole && selectedLevel ? `${selectedRole}::${selectedLevel}` : null;
 
-  const results = calculateResults(filteredQuestions, answers);
+  const results = calculateResults(attemptQuestions, answers);
   const playerLevel = Math.floor(totalXp / 120) + 1;
   const xpInLevel = totalXp % 120;
   const xpToNext = 120 - xpInLevel;
@@ -254,6 +275,8 @@ export default function Assessment() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [startLoading, setStartLoading] = useState(false);
+  const [startError, setStartError] = useState("");
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const questionActionsRef = useRef<HTMLDivElement | null>(null);
   const [lastCheckpointSeen, setLastCheckpointSeen] = useState(0);
@@ -302,13 +325,19 @@ export default function Assessment() {
       }
       const scoreMap: CategoryScoreMap = Object.fromEntries(results.normalized.map((item) => [item.category, item.percent]));
       registerCompletion(scoreMap, achievementIds);
+      if (selectedTrackKey && attemptQuestions.length > 0) {
+        markQuestionsSeen(
+          selectedTrackKey,
+          attemptQuestions.map((item) => item.id),
+        );
+      }
       completionPersistedRef.current = true;
       return;
     }
     if (!isCompleted) {
       completionPersistedRef.current = false;
     }
-  }, [isCompleted, results.normalized, registerCompletion, streakDays]);
+  }, [attemptQuestions, isCompleted, markQuestionsSeen, registerCompletion, results.normalized, selectedTrackKey, streakDays]);
 
   const exportAssessmentResults = () => {
     const payload = {
@@ -328,7 +357,7 @@ export default function Assessment() {
         category: displayCategory(item.category),
         percent: item.percent,
       })),
-      answers: filteredQuestions.map((question) => {
+      answers: attemptQuestions.map((question) => {
         const selectedOptionIndex = answers[question.id];
         const selectedOption = typeof selectedOptionIndex === "number" ? question.options[selectedOptionIndex] : null;
         return {
@@ -451,6 +480,62 @@ export default function Assessment() {
     }, "image/png");
   };
 
+  const beginAssessmentWithRandomQuestions = async () => {
+    if (!selectedRole || !selectedLevel || !selectedTrackKey) return;
+    setStartError("");
+    setStartLoading(true);
+    if (allTrackQuestions.length === 0) {
+      startAssessment([]);
+      setStartLoading(false);
+      return;
+    }
+
+    const localStart = () => {
+      const seenIds = new Set(seenQuestionIdsByTrack[selectedTrackKey] ?? []);
+      const unseenIds = allTrackQuestions.map((item) => item.id).filter((id) => !seenIds.has(id));
+      let poolIds = unseenIds;
+      if (poolIds.length === 0) {
+        clearTrackHistory(selectedTrackKey);
+        poolIds = allTrackQuestions.map((item) => item.id);
+      }
+      const seedKey = `${playerId}-${selectedTrackKey}-${Date.now()}`;
+      const selectedIds = sampleQuestionIds(poolIds, seedKey, QUESTIONS_PER_ATTEMPT);
+      startAssessment(selectedIds);
+    };
+
+    try {
+      const response = await fetch("/api/assessment-start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          playerId,
+          role: selectedRole,
+          level: selectedLevel,
+          questionCount: QUESTIONS_PER_ATTEMPT,
+          clientSeenQuestionIds: seenQuestionIdsByTrack[selectedTrackKey] ?? [],
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Assessment API ${response.status}`);
+      }
+      const payload = await response.json();
+      const questionIds = Array.isArray(payload?.questionIds) ? payload.questionIds.filter((id: unknown) => typeof id === "string") : [];
+      if (questionIds.length === 0) {
+        throw new Error("Assessment API returned empty question set");
+      }
+      startAssessment(questionIds);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setStartError(`Не удалось получить набор с сервера, использую локальный fallback (${message}).`);
+      localStart();
+    } finally {
+      setStartLoading(false);
+    }
+  };
+
   const sendChatMessage = async () => {
     const userText = chatInput.trim();
     if (!userText || chatLoading) return;
@@ -495,7 +580,7 @@ export default function Assessment() {
     }
   };
 
-  if (hasStarted && filteredQuestions.length === 0) {
+  if (hasStarted && attemptQuestions.length === 0) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
         <main className="relative mx-auto flex min-h-screen max-w-2xl items-center px-4 py-12">
@@ -737,7 +822,7 @@ export default function Assessment() {
     );
   }
 
-  if (hasStarted && filteredQuestions.length > 0 && currentQuestion) {
+  if (hasStarted && attemptQuestions.length > 0 && currentQuestion) {
     const selectedOptionIndex = answers[currentQuestion.id];
     const selectedFeedback = typeof selectedOptionIndex === "number" ? currentQuestion.options[selectedOptionIndex]?.feedback : "";
     const selectedPoints = typeof selectedOptionIndex === "number" ? currentQuestion.options[selectedOptionIndex]?.points ?? 0 : 0;
@@ -745,14 +830,14 @@ export default function Assessment() {
       selectedPoints,
       currentQuestion.options.map((option) => option.points),
     );
-    const progress = Math.round(((currentQuestionIndex + 1) / filteredQuestions.length) * 100);
+    const progress = Math.round(((currentQuestionIndex + 1) / attemptQuestions.length) * 100);
     const scenario = getQuestionScenario(currentQuestion, selectedRole!, selectedLevel!);
     const shuffledOptionIndexes = getShuffledOptionIndexes(currentQuestion.id, currentQuestion.options.length);
     const checkpointSize = 4;
     const shouldShowCheckpoint = currentQuestionIndex > 0 && currentQuestionIndex % checkpointSize === 0 && currentQuestionIndex > lastCheckpointSeen;
 
     if (shouldShowCheckpoint) {
-      const answeredSubset = filteredQuestions.slice(0, currentQuestionIndex);
+      const answeredSubset = attemptQuestions.slice(0, currentQuestionIndex);
       const interim = calculateResults(answeredSubset, answers);
       const answeredCount = answeredSubset.length;
       const topInterim = [...interim.normalized].sort((a, b) => b.percent - a.percent).slice(0, 3);
@@ -766,7 +851,7 @@ export default function Assessment() {
               </p>
               <h2 className="mt-3 text-3xl font-semibold">Вы прошли {answeredCount} вопросов</h2>
               <p className="mt-2 text-slate-300">
-                Текущий трек: {selectedTrackLabel}. Прогресс: {Math.round((answeredCount / filteredQuestions.length) * 100)}%.
+                Текущий трек: {selectedTrackLabel}. Прогресс: {Math.round((answeredCount / attemptQuestions.length) * 100)}%.
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -801,7 +886,7 @@ export default function Assessment() {
             <div className="mb-6">
               <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-slate-400">
                 <span>
-                  Вопрос {currentQuestionIndex + 1}/{filteredQuestions.length}
+                  Вопрос {currentQuestionIndex + 1}/{attemptQuestions.length}
                 </span>
                 <span>{progress}%</span>
               </div>
@@ -893,10 +978,10 @@ export default function Assessment() {
               <button
                 type="button"
                 onClick={nextQuestion}
-                disabled={typeof selectedOptionIndex !== "number" || currentQuestionIndex >= filteredQuestions.length}
+                disabled={typeof selectedOptionIndex !== "number" || currentQuestionIndex >= attemptQuestions.length}
                 className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
               >
-                {currentQuestionIndex === filteredQuestions.length - 1 ? "Завершить" : "Далее"}
+                {currentQuestionIndex === attemptQuestions.length - 1 ? "Завершить" : "Далее"}
               </button>
             </div>
           </section>
@@ -982,12 +1067,13 @@ export default function Assessment() {
 
           <button
             type="button"
-            disabled={!canStart}
-            onClick={startAssessment}
+            disabled={!canStart || startLoading}
+            onClick={() => void beginAssessmentWithRandomQuestions()}
             className="mt-8 inline-flex min-w-52 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Начать оценку
+            {startLoading ? "Загрузка..." : "Начать оценку"}
           </button>
+          {startError ? <p className="mt-3 text-xs text-amber-300">{startError}</p> : null}
         </section>
       </main>
     </div>
