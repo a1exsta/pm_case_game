@@ -573,16 +573,18 @@ export default function Assessment() {
               {shuffledOptionIndexes.map((originalIndex) => {
                 const option = currentQuestion.options[originalIndex];
                 const isSelected = selectedOptionIndex === originalIndex;
+                const isLocked = typeof selectedOptionIndex === "number";
                 return (
                   <button
                     key={`${currentQuestion.id}-${originalIndex}`}
                     type="button"
+                    disabled={isLocked}
                     onClick={() => selectAnswer(currentQuestion.id, originalIndex)}
                     className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                       isSelected
                         ? "border-indigo-400 bg-indigo-500/20 text-white"
                         : "border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-500"
-                    }`}
+                    } ${isLocked ? "cursor-not-allowed opacity-90" : ""}`}
                   >
                     {option.text}
                   </button>
