@@ -132,6 +132,11 @@
       background: #232534; color: var(--text); border: 1px solid #3a3e56; border-radius: 10px; min-width: 38px; min-height: 38px; cursor: pointer;
     }
     .coach-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+    .provider-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+    .provider-btn {
+      background: #1a1d2a; color: var(--text); border: 1px solid #353a53; border-radius: 999px; padding: 8px 12px; cursor: pointer; font: inherit;
+    }
+    .provider-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(124,109,240,.24) inset; }
     .field { display: grid; gap: 6px; }
     .field label { color: var(--muted); font-size: 12px; }
     .input, .chat-input {
@@ -160,6 +165,11 @@
         <button class="x-btn" id="coachCloseBtn" aria-label="Закрыть">✕</button>
       </div>
       <p class="muted">Отправьте вопрос по вашему прохождению. Тренер получает контекст выбранных решений.</p>
+      <div class="provider-row">
+        <button class="provider-btn" type="button" data-provider="openai">OpenAI</button>
+        <button class="provider-btn" type="button" data-provider="openrouter">OpenRouter</button>
+        <button class="provider-btn" type="button" data-provider="anthropic">Claude (Anthropic)</button>
+      </div>
       <div class="coach-settings">
         <div class="field">
           <label for="coachEndpoint">API endpoint (OpenAI-compatible)</label>
@@ -285,6 +295,25 @@
     const coachModel = document.getElementById("coachModel");
     const coachApiKey = document.getElementById("coachApiKey");
     const coachCloseBtn = document.getElementById("coachCloseBtn");
+    const providerBtns = Array.from(document.querySelectorAll("[data-provider]"));
+
+    const providerDefaults = {
+      openai: {
+        endpoint: "https://api.openai.com/v1/chat/completions",
+        model: "gpt-4o-mini",
+        keyPlaceholder: "sk-..."
+      },
+      openrouter: {
+        endpoint: "https://openrouter.ai/api/v1/chat/completions",
+        model: "openai/gpt-4o-mini",
+        keyPlaceholder: "sk-or-..."
+      },
+      anthropic: {
+        endpoint: "https://api.anthropic.com/v1/messages",
+        model: "claude-3-5-sonnet-latest",
+        keyPlaceholder: "sk-ant-..."
+      }
+    };
 
     const profileByScore = (score) => {
       if (score >= 12) return { title: "Стратегический менеджер", note: "Вы балансируете интересы сторон и принимаете взвешенные data-driven решения." };
@@ -378,12 +407,39 @@ ${answers}`;
       coachEndpoint.value = localStorage.getItem("pmCoachEndpoint") || "https://api.openai.com/v1/chat/completions";
       coachModel.value = localStorage.getItem("pmCoachModel") || "gpt-4o-mini";
       coachApiKey.value = localStorage.getItem("pmCoachApiKey") || "";
+      const provider = localStorage.getItem("pmCoachProvider") || "openai";
+      setProviderUI(provider);
     }
 
     function saveCoachSettings() {
       localStorage.setItem("pmCoachEndpoint", coachEndpoint.value.trim());
       localStorage.setItem("pmCoachModel", coachModel.value.trim());
       localStorage.setItem("pmCoachApiKey", coachApiKey.value.trim());
+      localStorage.setItem("pmCoachProvider", detectProviderFromEndpoint(coachEndpoint.value.trim()));
+    }
+
+    function detectProviderFromEndpoint(endpoint) {
+      const ep = endpoint.toLowerCase();
+      if (ep.includes("anthropic.com")) return "anthropic";
+      if (ep.includes("openrouter.ai")) return "openrouter";
+      return "openai";
+    }
+
+    function setProviderUI(provider) {
+      providerBtns.forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.provider === provider);
+      });
+      const placeholder = providerDefaults[provider]?.keyPlaceholder || "API key";
+      coachApiKey.placeholder = placeholder;
+    }
+
+    function applyProviderDefaults(provider) {
+      const cfg = providerDefaults[provider];
+      if (!cfg) return;
+      coachEndpoint.value = cfg.endpoint;
+      coachModel.value = cfg.model;
+      setProviderUI(provider);
+      localStorage.setItem("pmCoachProvider", provider);
     }
 
     function renderCoachMessages() {
@@ -430,25 +486,50 @@ ${answers}`;
       const context = buildCoachContext();
 
       try {
-        const messages = [
+        const provider = detectProviderFromEndpoint(endpoint);
+        const baseMessages = [
           { role: "system", content: context },
           ...state.coachMessages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({
             role: m.role,
             content: m.content
           }))
         ];
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model,
-            messages,
-            temperature: 0.5
-          })
-        });
+        let res;
+        if (provider === "anthropic") {
+          const anthropicMessages = [];
+          for (const m of baseMessages) {
+            if (m.role === "system") continue;
+            anthropicMessages.push(m);
+          }
+          res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apiKey,
+              "anthropic-version": "2023-06-01"
+            },
+            body: JSON.stringify({
+              model,
+              system: context,
+              max_tokens: 900,
+              temperature: 0.5,
+              messages: anthropicMessages
+            })
+          });
+        } else {
+          res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model,
+              messages: baseMessages,
+              temperature: 0.5
+            })
+          });
+        }
 
         if (!res.ok) {
           const errText = await res.text();
@@ -456,7 +537,10 @@ ${answers}`;
         }
 
         const data = await res.json();
-        const text = data?.choices?.[0]?.message?.content?.trim();
+        let text = data?.choices?.[0]?.message?.content?.trim();
+        if (!text && Array.isArray(data?.content)) {
+          text = data.content.map((c) => c?.text || "").join("").trim();
+        }
         if (!text) throw new Error("Пустой ответ модели.");
         state.coachMessages.push({ role: "assistant", content: text });
       } catch (err) {
@@ -633,6 +717,11 @@ ${answers}`;
       if (e.key === "Enter") sendCoachMessage();
     });
     coachCloseBtn.addEventListener("click", closeCoachModal);
+    providerBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyProviderDefaults(btn.dataset.provider);
+      });
+    });
     coachModal.addEventListener("click", (e) => {
       if (e.target === coachModal) closeCoachModal();
     });
