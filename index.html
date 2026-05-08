@@ -167,6 +167,7 @@
       <p class="muted">Отправьте вопрос по вашему прохождению. Тренер получает контекст выбранных решений.</p>
       <div class="provider-row">
         <button class="provider-btn" type="button" data-provider="openai">OpenAI</button>
+        <button class="provider-btn" type="button" data-provider="deepseek">DeepSeek</button>
         <button class="provider-btn" type="button" data-provider="openrouter">OpenRouter</button>
         <button class="provider-btn" type="button" data-provider="anthropic">Claude (Anthropic)</button>
       </div>
@@ -303,6 +304,11 @@
         model: "gpt-4o-mini",
         keyPlaceholder: "sk-..."
       },
+      deepseek: {
+        endpoint: "https://api.deepseek.com/chat/completions",
+        model: "deepseek-chat",
+        keyPlaceholder: "sk-..."
+      },
       openrouter: {
         endpoint: "https://openrouter.ai/api/v1/chat/completions",
         model: "openai/gpt-4o-mini",
@@ -422,6 +428,7 @@ ${answers}`;
       const ep = endpoint.toLowerCase();
       if (ep.includes("anthropic.com")) return "anthropic";
       if (ep.includes("openrouter.ai")) return "openrouter";
+      if (ep.includes("deepseek.com")) return "deepseek";
       return "openai";
     }
 
