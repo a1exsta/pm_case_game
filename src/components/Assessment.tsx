@@ -355,16 +355,15 @@ export default function Assessment() {
     downloadFile(`gigachat-dialog-${Date.now()}.txt`, `${header}${body}`, "text/plain;charset=utf-8");
   };
 
-  const shareTopCategories = [...results.normalized]
+  const shareAllCategories = [...results.normalized]
     .sort((a, b) => b.percent - a.percent)
-    .slice(0, 3)
     .map((item) => `${displayCategory(item.category)} ${item.percent}%`);
 
   const shareText = [
     `Я прошел(а) Skill Game: ${selectedTrackLabel || "Без трека"}`,
     `Игрок: ${displayName?.trim() || "Аноним"}`,
     `Уровень ${playerLevel} · XP ${totalXp} · серия ${streakDays} дн.`,
-    `Топ навыки: ${shareTopCategories.join(", ") || "данные в процессе"}`,
+    `Уровень моих навыков: ${shareAllCategories.join(", ") || "данные в процессе"}`,
   ].join("\n");
 
   const copyShareText = async () => {
@@ -414,19 +413,26 @@ export default function Assessment() {
 
     ctx.fillStyle = "#38bdf8";
     ctx.font = "600 28px Inter, Arial";
-    ctx.fillText("Top skills", 64, 322);
+    ctx.fillText("Уровень моих навыков", 64, 322);
 
     ctx.fillStyle = "#f8fafc";
-    ctx.font = "500 26px Inter, Arial";
-    const skillLines = shareTopCategories.length > 0 ? shareTopCategories : ["Пройдите оценку, чтобы получить результаты"];
-    let y = 366;
-    for (const line of skillLines) {
-      const wrapped = wrapText(ctx, `• ${line}`, 1060);
-      for (const part of wrapped) {
-        ctx.fillText(part, 64, y);
-        y += 34;
+    ctx.font = "500 23px Inter, Arial";
+    const skillLines = shareAllCategories.length > 0 ? shareAllCategories : ["Пройдите оценку, чтобы получить результаты"];
+    const half = Math.ceil(skillLines.length / 2);
+    const leftColumn = skillLines.slice(0, half);
+    const rightColumn = skillLines.slice(half);
+    const drawColumn = (items: string[], startX: number) => {
+      let y = 366;
+      for (const line of items) {
+        const wrapped = wrapText(ctx, `• ${line}`, 500);
+        for (const part of wrapped) {
+          ctx.fillText(part, startX, y);
+          y += 30;
+        }
       }
-    }
+    };
+    drawColumn(leftColumn, 64);
+    drawColumn(rightColumn, 620);
 
     ctx.fillStyle = "#64748b";
     ctx.font = "500 20px Inter, Arial";
@@ -612,11 +618,17 @@ export default function Assessment() {
                 <p className="mt-1 text-sm text-slate-300">
                   Уровень {playerLevel} · XP {totalXp} · серия {streakDays} дн.
                 </p>
-                <p className="mt-3 text-xs uppercase tracking-wide text-violet-200">Топ навыки</p>
-                {shareTopCategories.length > 0 ? (
-                  <p className="mt-1 text-sm text-slate-200">{shareTopCategories.join(" · ")}</p>
+                <p className="mt-3 text-xs uppercase tracking-wide text-violet-200">Уровень моих навыков</p>
+                {shareAllCategories.length > 0 ? (
+                  <div className="mt-2 grid gap-x-6 gap-y-1 text-sm text-slate-200 md:grid-cols-2">
+                    {shareAllCategories.map((item) => (
+                      <p key={`share-skill-${item}`} className="truncate">
+                        {item}
+                      </p>
+                    ))}
+                  </div>
                 ) : (
-                  <p className="mt-1 text-sm text-slate-400">Пройдите оценку, чтобы увидеть top-навыки.</p>
+                  <p className="mt-1 text-sm text-slate-400">Пройдите оценку, чтобы увидеть уровень навыков.</p>
                 )}
               </div>
               <div className="mt-4 flex flex-wrap gap-3">
