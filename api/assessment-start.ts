@@ -1,4 +1,5 @@
 import { assessmentData } from "../src/data/questions";
+import { loadQuestionBank } from "./_lib/questions-bank";
 import { loadSeenQuestionIds, saveSeenQuestionIds } from "./_lib/seen-questions-storage";
 
 interface StartRequestBody {
@@ -55,7 +56,8 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Invalid playerId, role, or level" });
     }
 
-    const trackQuestions = assessmentData.questions.filter((item) => item.role === role && item.level === level);
+    const bank = await loadQuestionBank(assessmentData.questions);
+    const trackQuestions = bank.filter((item) => item.role === role && item.level === level);
     const allIds = trackQuestions.map((item) => item.id);
     const trackKey = `${playerId}::${role}::${level}`;
     const persistedSeen = await loadSeenQuestionIds(trackKey);
@@ -76,11 +78,16 @@ export default async function handler(req: any, res: any) {
     }
     await saveSeenQuestionIds(trackKey, Array.from(mergedSeen));
 
+    const byId = new Map(bank.map((item) => [item.id, item]));
+    const questions = questionIds.map((id) => byId.get(id)).filter(Boolean);
+
     return res.status(200).json({
       questionIds,
+      questions,
       resetApplied,
       totalTrackQuestions: allIds.length,
       remainingUnseen: Math.max(0, allIds.length - mergedSeen.size),
+      bankSize: bank.length,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { assessmentData, getQuestionScenario } from "../data/questions";
-import { useAssessmentStore, type CategoryScoreMap } from "../store/useStore";
+import { useAssessmentStore, type AttemptQuestionSnapshot, type CategoryScoreMap } from "../store/useStore";
 import RadarChart from "./RadarChart";
 
 type Question = (typeof assessmentData.questions)[number];
@@ -186,6 +186,14 @@ function computeAchievementIds(normalized: Array<{ category: string; percent: nu
   return ids;
 }
 
+function questionsFromServerSnapshot(orderIds: string[], snapshot: AttemptQuestionSnapshot[] | null): Question[] {
+  if (!snapshot || snapshot.length !== orderIds.length) return [];
+  const map = new Map(snapshot.map((item) => [item.id, item]));
+  const ordered = orderIds.map((id) => map.get(id)).filter((item): item is AttemptQuestionSnapshot => Boolean(item));
+  if (ordered.length !== orderIds.length) return [];
+  return ordered as unknown as Question[];
+}
+
 function calculateResults(questions: Question[], answers: Record<string, number>) {
   const perCategory: Record<string, { score: number; max: number }> = {};
 
@@ -236,6 +244,7 @@ export default function Assessment() {
     hasStarted,
     answers,
     activeQuestionIds,
+    activeAttemptQuestions,
     seenQuestionIdsByTrack,
     totalXp,
     streakDays,
@@ -258,10 +267,11 @@ export default function Assessment() {
   const canStart = Boolean(selectedRole && selectedLevel);
   const allTrackQuestions = assessmentData.questions.filter((item) => item.role === selectedRole && item.level === selectedLevel);
   const questionById = useMemo(() => new Map<string, Question>(allTrackQuestions.map((item) => [item.id, item])), [allTrackQuestions]);
-  const attemptQuestions = useMemo(
-    () => activeQuestionIds.map((id) => questionById.get(id)).filter((item): item is Question => Boolean(item)),
-    [activeQuestionIds, questionById],
-  );
+  const attemptQuestions = useMemo(() => {
+    const fromServer = questionsFromServerSnapshot(activeQuestionIds, activeAttemptQuestions);
+    if (fromServer.length > 0) return fromServer;
+    return activeQuestionIds.map((id) => questionById.get(id)).filter((item): item is Question => Boolean(item));
+  }, [activeAttemptQuestions, activeQuestionIds, questionById]);
   const currentQuestion = attemptQuestions[currentQuestionIndex];
   const isCompleted = hasStarted && attemptQuestions.length > 0 && Object.keys(answers).length >= attemptQuestions.length;
   const selectedTrackLabel = selectedRole && selectedLevel ? `${roleLabels[selectedRole]} · ${levelLabels[selectedLevel]}` : "";
@@ -485,7 +495,7 @@ export default function Assessment() {
     setStartError("");
     setStartLoading(true);
     if (allTrackQuestions.length === 0) {
-      startAssessment([]);
+      startAssessment([], null);
       setStartLoading(false);
       return;
     }
@@ -500,7 +510,7 @@ export default function Assessment() {
       }
       const seedKey = `${playerId}-${selectedTrackKey}-${Date.now()}`;
       const selectedIds = sampleQuestionIds(poolIds, seedKey, QUESTIONS_PER_ATTEMPT);
-      startAssessment(selectedIds);
+      startAssessment(selectedIds, null);
     };
 
     try {
@@ -526,7 +536,12 @@ export default function Assessment() {
       if (questionIds.length === 0) {
         throw new Error("Assessment API returned empty question set");
       }
-      startAssessment(questionIds);
+      const rawQuestions = payload?.questions;
+      const snapshot =
+        Array.isArray(rawQuestions) && rawQuestions.length === questionIds.length
+          ? (rawQuestions as AttemptQuestionSnapshot[])
+          : null;
+      startAssessment(questionIds, snapshot);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       setStartError(`Не удалось получить набор с сервера, использую локальный fallback (${message}).`);

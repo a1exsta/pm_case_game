@@ -8,6 +8,16 @@ type Level = (typeof assessmentData.levels)[number];
 export type AnswerMap = Record<string, number>;
 export type CategoryScoreMap = Record<string, number>;
 
+/** Serialized question payload from `/api/assessment-start` (KV-backed bank). */
+export interface AttemptQuestionSnapshot {
+  id: string;
+  role: string;
+  level: string;
+  category: string;
+  question: string;
+  options: Array<{ text: string; points: number; feedback: string }>;
+}
+
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
 function getDateStart(value: Date) {
@@ -33,6 +43,8 @@ interface AssessmentState {
   hasStarted: boolean;
   answers: AnswerMap;
   activeQuestionIds: string[];
+  /** Full question bodies for the current attempt (server snapshot); fallback to local bundle when null. */
+  activeAttemptQuestions: AttemptQuestionSnapshot[] | null;
   seenQuestionIdsByTrack: Record<string, string[]>;
   totalXp: number;
   streakDays: number;
@@ -42,7 +54,7 @@ interface AssessmentState {
   setDisplayName: (name: string) => void;
   setRole: (role: Role) => void;
   setLevel: (level: Level) => void;
-  startAssessment: (questionIds: string[]) => void;
+  startAssessment: (questionIds: string[], attemptQuestions?: AttemptQuestionSnapshot[] | null) => void;
   selectAnswer: (questionId: string, optionIndex: number) => void;
   awardXp: (amount: number) => void;
   registerCompletion: (scores: CategoryScoreMap, achievementIds: string[]) => void;
@@ -64,6 +76,7 @@ export const useAssessmentStore = create<AssessmentState>()(
       hasStarted: false,
       answers: {},
       activeQuestionIds: [],
+      activeAttemptQuestions: null,
       seenQuestionIdsByTrack: {},
       totalXp: 0,
       streakDays: 0,
@@ -73,7 +86,14 @@ export const useAssessmentStore = create<AssessmentState>()(
       setDisplayName: (name) => set({ displayName: name }),
       setRole: (role) => set({ selectedRole: role }),
       setLevel: (level) => set({ selectedLevel: level }),
-      startAssessment: (questionIds) => set({ currentQuestionIndex: 0, hasStarted: true, answers: {}, activeQuestionIds: questionIds }),
+      startAssessment: (questionIds, attemptQuestions = null) =>
+        set({
+          currentQuestionIndex: 0,
+          hasStarted: true,
+          answers: {},
+          activeQuestionIds: questionIds,
+          activeAttemptQuestions: attemptQuestions ?? null,
+        }),
       selectAnswer: (questionId, optionIndex) =>
         set((state) => ({
           answers: {
@@ -121,6 +141,7 @@ export const useAssessmentStore = create<AssessmentState>()(
           hasStarted: false,
           answers: {},
           activeQuestionIds: [],
+          activeAttemptQuestions: null,
         }),
     }),
     {
